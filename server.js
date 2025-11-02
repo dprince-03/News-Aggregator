@@ -10,8 +10,8 @@ const session = require('express-session');
 
 const { testConnection, closeConnection } = require('./src/config/db.config');
 const { notFound, errorHandler } = require('./src/middleware/errorHandler.middleware');
+const logger = require('./src/utils/logger.utils');
 const authRouter = require('./src/routes/auth.routes');
-
 
 const app = express();
 const PORT = process.env.PORT || 5080
@@ -19,7 +19,59 @@ const PORT = process.env.PORT || 5080
 app.set('trust-proxy', 1); // trust first proxy if behind a proxy like Nginx
 
 // ========================
-//      MIDDLEWARES
+// SECRET VALIDATION
+// ========================
+/**
+ * Validate required environment secrets on startup
+ * Prevents server from starting with missing/invalid secrets
+*/
+const validateEnvironmentSecrets = () => {
+    console.log('-- Validating environment secrets... \n');
+    
+    const requiredSecrets = [
+        'JWT_SECRET',
+        'JWT_REFRESH_SECRET',
+        'SESSION_SECRET'
+    ];
+
+    const missingSecrets = [];
+    const weakSecrets =[];
+
+    requiredSecrets.forEach(key => {
+        const value = process.env[key];
+
+        if (!value) {
+            missingSecrets.push(key);
+        } else if (value.length < 32 || value.includes('your_') || value.includes('change_this') || value.includes('placeholder')) {
+            weakSecrets.push(key);
+        }
+    });
+
+    if (missingSecrets.length > 0) {
+        console.error('-- Missing required secrets:');
+        missingSecrets.forEach(key => console.error(`   • ${key}`));
+        console.error('\n-- To fix this, run:');
+        console.error('   node src/utils/secrets.utils.js generate\n');
+        process.exit(1);
+    }
+
+    if (weakSecrets.length > 0) {
+        console.warn('--  Weak secrets detected (use production-grade secrets):');
+        weakSecrets.forEach(key => console.warn(`   • ${key}`));
+        console.warn('\n-- To regenerate, run:');
+        console.warn('   node src/utils/secrets.utils.js force\n');
+        
+        if (process.env.NODE_ENV === 'production') {
+            console.error('-- Cannot start in production with weak secrets!\n');
+            process.exit(1);
+        }
+    }
+
+    console.log('✅ All required secrets are valid\n');
+};
+
+// ========================
+// MIDDLEWARES
 // ========================
 const corsConfig = {
     origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['http://localhost:5000', 'http://localhost:5080'],
@@ -64,12 +116,14 @@ const sessionConfig = {
 };
 
 //Temporary debug middleware
-app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`);
-    console.log('Body:', req.body);
-    console.log('Content-Type:', req.headers['content-type']);
-    next();
-}); // remove later
+if (process.env.NODE_ENV !== "production") {
+	app.use((req, res, next) => {
+		console.log(`${req.method} ${req.path}`);
+		console.log("Body:", req.body);
+		console.log("Content-Type:", req.headers["content-type"]);
+		next();
+	});
+} // remove later
 
 app.use(helmet(helmetConfig));
 app.use(cors(corsConfig));
@@ -81,9 +135,23 @@ app.use(passport.session());
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// ========================================
-//      Security headers middleware
-// ========================================
+// ====================
+// request logging middleware
+// ====================
+app.use((req, res,next) => {
+    const startTime = Date.now();
+
+    res.on('finish', () => {
+        const responseTime = Date.now() - startTime;
+        logger.logRequest(req, res, responseTime);
+    });
+
+    next();
+});
+
+// ========================
+// Security headers middleware
+// ========================
 app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -92,10 +160,37 @@ app.use((req, res, next) => {
     next();
 });
 
-// ========================
-//      ROUTES
-// ========================
+// =======================
+// ROUTES
+// =======================
 app.use('/api', limiter);
+
+// Root endpoint
+app.get('/api', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'News Aggregator API',
+        version: '1.0.0',
+        endpoints: {
+            health: '/api/health',
+            auth: {
+                register: 'POST /api/auth/register',
+                login: 'POST /api/auth/login',
+                logout: 'POST /api/auth/logout',
+                profile: 'GET /api/auth/me',
+                updateProfile: 'PUT /api/auth/profile',
+                changePassword: 'PUT /api/auth/change-password',
+                forgotPassword: 'POST /api/auth/forgot-password',
+                resetPassword: 'POST /api/auth/reset-password',
+                refreshToken: 'POST /api/auth/refresh-token',
+                google: 'GET /api/auth/google',
+                facebook: 'GET /api/auth/facebook',
+                twitter: 'GET /api/auth/twitter'
+            }
+        },
+        documentation: '/api/docs'
+    });
+});
 
 // health check
 app.get('/api/health', (req, res) => {
@@ -105,29 +200,36 @@ app.get('/api/health', (req, res) => {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         environment: process.env.NODE_ENV || 'development',
+        version: process.env.npm_package_version || '1.0.0',
     });
 });
 
-app.use('/api', authRouter);
+app.use('/api/auth', authRouter);
+// app.use('/api')
+// app.use('/api')
 
 // ========================
-//      ERROR HANDLING
+// ERROR HANDLING
 // ========================
 app.use(notFound);
 app.use(errorHandler);
 
 // ========================
-//      SERVER SETUP
+// SERVER SETUP
 // ========================
-const start_server = async () => {
+const start_server = async () => {    
     try {
         console.log('');
         console.log('='.repeat(50));
-        console.log("Starting News Aggregator API...");
+        console.log("-- Starting News Aggregator API...");
         console.log('='.repeat(50));
         console.log('');
+        
+        // Validate environment secrets
+        validateEnvironmentSecrets();
 
         // Initialize database
+        console.log('-- Connecting to database...\n');        
         const dbconnect = await testConnection();
         if (!dbconnect) {
             console.error("Failed to connect to database");
@@ -135,6 +237,7 @@ const start_server = async () => {
             process.exit(1);
         }
 
+        // Start HTTP Server 
         const server = app.listen(PORT, () => {
             console.log('');
             console.log('='.repeat(50));
@@ -149,7 +252,7 @@ const start_server = async () => {
 
             console.log('Tips:');
             console.log('   - Use Postman or curl to test the API');
-            console.log('   - Check /api for complete endpoint list');
+            console.log('   - Visit http://localhost:' + PORT + '/api for endpoint list');
             console.log('');
             console.log('='.repeat(50));
             console.log('       Press CTRL+C to stop the server         ');
@@ -158,6 +261,7 @@ const start_server = async () => {
 
         });
 
+        // GRACEFUL SHUTDOWN
         const shutdown = async (signal) => {
             console.log('');
             console.log('='.repeat(50));
@@ -195,7 +299,7 @@ const start_server = async () => {
         // Handle uncaught exceptions
         process.on('uncaughtException', (err) => {
             console.error('');
-            console.error('Uncaught Exception:', err);
+            console.error('-- Uncaught Exception:', err);
             console.error('');
             shutdown('UNCAUGHT_EXCEPTION');
         });
@@ -203,7 +307,7 @@ const start_server = async () => {
         // Handle unhandled promise rejections
         process.on('unhandledRejection', (reason, promise) => {
             console.error('');
-            console.error('Unhandled Rejection at:', promise);
+            console.error('-- Unhandled Rejection at:', promise);
             console.error('Reason:', reason);
             console.error('');
             shutdown('UNHANDLED_REJECTION');
@@ -212,10 +316,11 @@ const start_server = async () => {
     } catch (error) {
         console.error('');
         console.error('='.repeat(60));
-        console.error('Failed to start server');
+        console.error('-- Failed to start server');
         console.error('='.repeat(60));
         console.error('');
         console.error('Error:', error.message);
+        console.error('Stack:', error.stack);
         console.error('');
         process.exit(1);
     }

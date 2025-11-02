@@ -27,7 +27,7 @@ const ensureEnvFile = () => {
 	const envPath = path.join(process.cwd(), ".env");
 
 	if (!fs.existsSync(envPath)) {
-		console.log("📝 Creating .env file...");
+		console.log("-- Creating .env file...");
 		fs.writeFileSync(envPath, "# News Aggregator Environment Variables\n\n");
 	}
 
@@ -95,7 +95,7 @@ const hasValidSecret = (content, key) => {
  * @param {boolean} force - Force regenerate even if secrets exist
  */
 const generateAllSecrets = (force = false) => {
-	console.log("🔐 News Aggregator Secrets Generator\n");
+	console.log("-- News Aggregator Secrets Generator\n");
 
 	// Ensure .env file exists
 	const envPath = ensureEnvFile();
@@ -178,14 +178,14 @@ const generateAllSecrets = (force = false) => {
 	// Write updated content back to file
 	if (updated) {
 		fs.writeFileSync(envPath, envContent);
-		console.log("✅ Secrets generated and saved to .env file\n");
+		console.log("-- Secrets generated and saved to .env file\n");
 	} else {
-		console.log("ℹ️  All secrets already exist in .env file\n");
+		console.log("-- All secrets already exist in .env file\n");
 	}
 
 	// Display results
 	if (generatedSecrets.length > 0) {
-		console.log("🔑 Generated Secrets:");
+		console.log("-- Generated Secrets:");
 		console.log("━".repeat(60));
 		generatedSecrets.forEach(({ key, value, description }) => {
 			console.log(`\n${key}`);
@@ -196,14 +196,14 @@ const generateAllSecrets = (force = false) => {
 	}
 
 	if (skippedSecrets.length > 0) {
-		console.log("\n⏭️  Skipped (already exists):");
+		console.log("\n--  Skipped (already exists):");
 		skippedSecrets.forEach(({ key, description }) => {
 			console.log(`  • ${key} - ${description}`);
 		});
 	}
 
 	// Security warnings
-	console.log("\n⚠️  SECURITY REMINDERS:");
+	console.log("\n--  SECURITY REMINDERS:");
 	console.log("  1. Never commit .env file to version control");
 	console.log("  2. Add .env to .gitignore");
 	console.log("  3. Use different secrets for production");
@@ -240,12 +240,12 @@ const addSectionHeaders = (content) => {
  * @returns {Object} - Validation results
  */
 const validateSecrets = () => {
-	console.log("🔍 Validating existing secrets...\n");
+	console.log("-- Validating existing secrets...\n");
 
 	const envPath = path.join(process.cwd(), ".env");
 
 	if (!fs.existsSync(envPath)) {
-		console.log("❌ No .env file found!");
+		console.log("-- No .env file found!");
 		return { valid: false, missing: ["all"], weak: [], errors: [] };
 	}
 
@@ -279,16 +279,16 @@ const validateSecrets = () => {
 
 	// Display results
 	if (results.valid && results.weak.length === 0) {
-		console.log("✅ All secrets are valid and strong!\n");
+		console.log("-- All secrets are valid and strong!\n");
 	} else {
 		if (results.missing.length > 0) {
-			console.log("❌ Missing secrets:");
+			console.log("-- Missing secrets:");
 			results.missing.forEach((key) => console.log(`  • ${key}`));
 			console.log("");
 		}
 
 		if (results.weak.length > 0) {
-			console.log("⚠️  Weak secrets (less than 64 chars):");
+			console.log("--  Weak secrets (less than 64 chars):");
 			results.weak.forEach((key) => console.log(`  • ${key}`));
 			console.log("");
 		}
@@ -302,7 +302,7 @@ const validateSecrets = () => {
  * @param {string} env - Environment (development, production, test)
  */
 const generateForEnvironment = (env = "development") => {
-	console.log(`🌍 Generating secrets for: ${env.toUpperCase()}\n`);
+	console.log(`-- Generating secrets for: ${env.toUpperCase()}\n`);
 
 	const envPath = path.join(process.cwd(), `.env.${env}`);
 	const content = `# News Aggregator - ${env.toUpperCase()} Environment\n\n`;
@@ -312,7 +312,7 @@ const generateForEnvironment = (env = "development") => {
 	// Generate secrets specific to environment
 	const secrets = generateAllSecrets();
 
-	console.log(`\n✅ Secrets generated in .env.${env}`);
+	console.log(`\n-- Secrets generated in .env.${env}`);
 
 	return secrets;
 };
@@ -324,7 +324,7 @@ const backupEnvFile = () => {
 	const envPath = path.join(process.cwd(), ".env");
 
 	if (!fs.existsSync(envPath)) {
-		console.log("ℹ️  No .env file to backup");
+		console.log("-- No .env file to backup");
 		return null;
 	}
 
@@ -357,7 +357,7 @@ const main = () => {
 		case "force":
 		case "regenerate":
 			console.log(
-				"⚠️  Regenerating ALL secrets (this will replace existing ones)\n"
+				"-- Regenerating ALL secrets (this will replace existing ones)\n"
 			);
 			backupEnvFile();
 			generateAllSecrets(true);

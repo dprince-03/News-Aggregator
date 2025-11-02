@@ -24,6 +24,26 @@ const sequelize = new Sequelize(
 			updatedAt: "updated_at",
 		},
 		timezone: "+01:00", // Adjust to your timezone
+		retry: {
+			match: [
+				/ETIMEDOUT/,
+				/EHOSTUNREACH/,
+				/ECONNRESET/,
+				/ECONNREFUSED/,
+				/ETIMEDOUT/,
+				/ESOCKETTIMEDOUT/,
+				/EHOSTUNREACH/,
+				/EPIPE/,
+				/EAI_AGAIN/,
+				/SequelizeConnectionError/,
+				/SequelizeConnectionRefusedError/,
+				/SequelizeHostNotFoundError/,
+				/SequelizeHostNotReachableError/,
+				/SequelizeInvalidConnectionError/,
+				/SequelizeConnectionTimedOutError/,
+			],
+			max: 3,
+		},
 	}
 );
 
@@ -31,15 +51,15 @@ const sequelize = new Sequelize(
 const testConnection = async () => {
 	try {
 		await sequelize.authenticate();
-		console.log("✅ Sequelize connected to MySQL successfully!");
+		console.log("-- Sequelize connected to MySQL successfully!");
 
 		// Test a simple query
 		const [results] = await sequelize.query("SELECT 1 as test");
-		console.log("✅ Database query test successful:", results[0]);
+		console.log("-- Database query test successful:", results[0]);
 
 		return true;
 	} catch (error) {
-		console.error("❌ Unable to connect to database:", error.message);
+		console.error("-- Unable to connect to database:", error.message);
 		return false;
 	}
 };
@@ -48,10 +68,10 @@ const testConnection = async () => {
 const syncDatabase = async (options = {}) => {
 	try {
 		await sequelize.sync(options);
-		console.log("✅ Database synchronized successfully");
+		console.log("-- Database synchronized successfully");
 		return true;
 	} catch (error) {
-		console.error("❌ Database sync failed:", error.message);
+		console.error("-- Database sync failed:", error.message);
 		return false;
 	}
 };
@@ -60,9 +80,9 @@ const syncDatabase = async (options = {}) => {
 const closeConnection = async () => {
 	try {
 		await sequelize.close();
-		console.log("✅ Sequelize connection closed successfully");
+		console.log("-- Sequelize connection closed successfully");
 	} catch (error) {
-		console.error("❌ Error closing connection:", error.message);
+		console.error("-- Error closing connection:", error.message);
 	}
 };
 
