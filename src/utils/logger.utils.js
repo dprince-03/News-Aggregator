@@ -117,3 +117,39 @@ logger.logError = (error, req = null) => {
 };
 
 module.exports = logger;
+
+
+
+
+
+
+// ============================================
+// SUMMARY: DUAL LOGGING SYSTEM
+// ============================================
+/*
+
+┌─────────────────────────────────────────────────────────┐
+│              YOUR LOGGING ARCHITECTURE                  │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  1. FILE LOGGING (Winston)                             │
+│     Location: logs/*.log                               │
+│     Purpose: Debug, errors, general app logs           │
+│     Retention: 14 days (rotating)                      │
+│                                                         │
+│  2. DATABASE LOGGING (ApiLog Model)                     │
+│     Location: MySQL api_logs table                     │
+│     Purpose: API performance, statistics, analytics    │
+│     Retention: Unlimited (manual cleanup)              │
+│                                                         │
+│  WHEN DOES EACH LOG?                                    │
+│  ────────────────────────────────────────────────────  │
+│  • External API calls → BOTH (file + database)         │
+│  • Internal API requests → FILE only (optional DB)     │
+│  • Application errors → FILE only                      │
+│  • Debug messages → FILE only                          │
+│  • Security events → FILE only                         │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+
+*/

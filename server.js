@@ -10,8 +10,10 @@ const session = require('express-session');
 
 const { testConnection, closeConnection } = require('./src/config/db.config');
 const { notFound, errorHandler } = require('./src/middleware/errorHandler.middleware');
+const { startArticleFetchJob } = require('./src/jobs/fetchArticles.jobs');
 const logger = require('./src/utils/logger.utils');
 const authRouter = require('./src/routes/auth.routes');
+const adminRouter = require('./src/routes/admin.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5080
@@ -205,6 +207,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/admin', adminRouter);
 // app.use('/api')
 // app.use('/api')
 
@@ -224,6 +227,11 @@ const start_server = async () => {
         console.log("-- Starting News Aggregator API...");
         console.log('='.repeat(50));
         console.log('');
+
+        // Start cron job 
+        if (process.env.ENABLE_CRON ==='true') {
+            startArticleFetchJob();
+        }
         
         // Validate environment secrets
         validateEnvironmentSecrets();
