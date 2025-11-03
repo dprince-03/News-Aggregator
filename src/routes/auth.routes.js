@@ -23,7 +23,7 @@ authRouter.post('/forget-password', forgotPasswordValidation, forgotPassword);
 
 authRouter.post('/reset-password', resetPasswordValidation, resetPassword);
 
-authRouter.post('/refresh-token', refreshToken);
+// authRouter.post('/refresh-token', refreshToken);
 
 // ============================================
 // Google OAuth Routes

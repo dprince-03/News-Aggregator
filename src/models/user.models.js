@@ -36,10 +36,10 @@ const User = sequelize.define(
 		},
 		password: {
 			type: DataTypes.STRING(255),
-			allowNull: true,
+			allowNull: false,
 			validate: {
 				notNull: {
-					args: true,
+					args: false,
 					msg: "Password is required",
 				},
 				notEmpty: {

@@ -257,8 +257,8 @@ module.exports = {
 	changePassword,
 	forgotPassword,
 	resetPassword,
-	refreshToken,
+	// refreshToken,
 	googleCallback,
-	facebookCallback,
+	// facebookCallback,
 	twitterCallback,
 };

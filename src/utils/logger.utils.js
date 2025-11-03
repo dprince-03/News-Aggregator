@@ -37,7 +37,7 @@ const transports = [
         datePattern: 'YYYY-MM-DD',
         level: 'error',
         maxSize: '20m',
-        maxFiles: '14d', // Keep for 14 days
+        maxFiles: '14d',
         format: logFormat,
     }),
 
@@ -45,6 +45,16 @@ const transports = [
     new DailyRotateFile({
         filename: path.join('logs', 'combined-%DATE%.log'),
         datePattern: 'YYYY-MM-DD',
+        maxSize: '20m',
+        maxFiles: '14d',
+        format: logFormat,
+    }),
+
+    // Access log file (HTTP requests only)
+    new DailyRotateFile({
+        filename: path.join('logs', 'access-%DATE%.log'),
+        datePattern: 'YYYY-MM-DD',
+        level: 'http',
         maxSize: '20m',
         maxFiles: '14d',
         format: logFormat,
@@ -59,19 +69,38 @@ const logger = winston.createLogger({
     exitOnError: false,
 });
 
-// Add request logging method
-logger.logRequest = (req, res, responseTime) => {
-    logger.info('HTTP Request', {
+// NEW: Enhanced request logging with database option
+logger.logRequest = async (req, res, responseTime, saveToDb = true) => {
+    const logData = {
         method: req.method,
         url: req.originalUrl,
         ip: req.ip,
         userAgent: req.get('user-agent'),
         statusCode: res.statusCode,
         responseTime: `${responseTime}ms`,
-    });
+    };
+
+    // Log to file
+    logger.http('HTTP Request', logData);
+
+    // Optionally save to database
+    if (saveToDb && process.env.ENABLE_DB_LOGGING === 'true') {
+        try {
+            const { ApiLog } = require('../models');
+            await ApiLog.create({
+                api_source: 'Internal API',
+                endpoint: req.originalUrl,
+                status_code: res.statusCode,
+                response_time_ms: responseTime,
+            });
+        } catch (error) {
+            // Don't let DB logging errors break the app
+            logger.error('Failed to save request log to database', { error: error.message });
+        }
+    }
 };
 
-// Add error logging method
+// Enhanced error logging
 logger.logError = (error, req = null) => {
     const errorLog = {
         message: error.message,
