@@ -4,14 +4,29 @@
   "description": "a RESTful API for a news aggregator service that fetches articles from various sources and provides endpoints for a frontend application to consume.",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "cross-env NODE_ENV=test jest --detectOpenHandles --forceExit",
+    "test:watch": "cross-env NODE_ENV=test jest --watch",
+    "test:coverage": "cross-env NODE_ENV=test jest --coverage",
+    "test:auth": "cross-env NODE_ENV=test jest tests/auth.test.js",
+    "test:articles": "cross-env NODE_ENV=test jest tests/articles.test.js",
+    "test:preferences": "cross-env NODE_ENV=test jest tests/preferences.test.js",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "secrets:gen": "node src/utils/secrets.utils.js generate",
     "secrets:check": "node src/utils/secrets.utils.js validate",
     "secrets:backup": "node src/utils/secrets.utils.js backup",
     "secrets:prod": "node src/utils/secrets.utils.js env production",
-    "secrets:regen": "node src/utils/secrets.utils.js force"
+    "secrets:regen": "node src/utils/secrets.utils.js force",
+    "stats": "node scripts/view-api-stats.js",
+    "stats:7": "node scripts/view-api-stats.js 7",
+    "stats:30": "node scripts/view-api-stats.js 30"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "testTimeout": 30000
   },
   "repository": {
     "type": "git",
@@ -56,6 +71,8 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "cross-env": "^10.1.0",
     "jest": "^30.2.0",
     "nodemon": "^3.1.10",
     "pm2": "^6.0.13",

@@ -14,6 +14,8 @@ const { startArticleFetchJob } = require('./src/jobs/fetchArticles.jobs');
 const logger = require('./src/utils/logger.utils');
 const authRouter = require('./src/routes/auth.routes');
 const adminRouter = require('./src/routes/admin.routes');
+const articleRouter = require('./src/routes/article.routes');
+const preferenceRouter = require('./src/routes/preference.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5080
@@ -208,8 +210,8 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
-// app.use('/api')
-// app.use('/api')
+app.use('/api/articles', articleRouter);
+app.use('/api/preferences', preferenceRouter);
 
 // ========================
 // ERROR HANDLING
