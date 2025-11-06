@@ -24,12 +24,19 @@ const startArticleFetchJob = () => {
             
             if (result.success) {
                 console.log(` [CRON] Success: ${result.fetched} fetched, ${result.saved} saved`);
-
-                const stats = await ApiLog.getApiStats(1); // Today's stats
-                console.log('\n Today\'s API Usage:');
-                stats.forEach(stat => {
-                    console.log(`   ${stat.api_source}: ${stat.request_count} requests, avg ${parseFloat(stat.avg_response_time).toFixed(0)}ms`);
-                });
+                
+                // 🎯 Show stats after each fetch
+                console.log('\n API Usage (Today):');
+                const todayStats = await ApiLog.getApiStats(1);
+                
+                if (todayStats.length > 0) {
+                    todayStats.forEach(stat => {
+                        const avgTime = parseFloat(stat.avg_response_time).toFixed(0);
+                        console.log(`   ${stat.api_source.padEnd(20)} ${stat.request_count.padStart(4)} requests, avg ${avgTime.padStart(4)}ms`);
+                    });
+                } else {
+                    console.log('   No API calls yet today');
+                }
             } else {
                 console.error(` [CRON] Failed: ${result.error}`);
             }
