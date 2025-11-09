@@ -1,0 +1,57 @@
+{
+  "name": "news-aggregator",
+  "version": "1.0.0",
+  "description": "A full-stack news aggregator application with RESTful API and modern React frontend",
+  "main": "server/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "start": "cd server && npm start",
+    "build": "cd client && npm run build",
+    "build:client": "cd client && npm run build",
+    "preview": "cd client && npm run preview",
+    "test": "cd server && npm test",
+    "test:server": "cd server && npm test",
+    "test:watch": "cd server && npm run test:watch",
+    "test:coverage": "cd server && npm run test:coverage",
+    "install:server": "cd server && npm install",
+    "install:client": "cd client && npm install",
+    "install:all": "npm install && npm run install:server && npm run install:client",
+    "clean": "rm -rf node_modules server/node_modules client/node_modules server/dist client/dist",
+    "stats": "cd server && npm run stats"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dprince-03/News-Aggregator-API-.git"
+  },
+  "keywords": [
+    "news",
+    "aggregator",
+    "api",
+    "react",
+    "express",
+    "mysql",
+    "jwt",
+    "oauth",
+    "sequelize",
+    "newsapi",
+    "guardian",
+    "nyt"
+  ],
+  "author": "dprince-03",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dprince-03/News-Aggregator-API-/issues"
+  },
+  "homepage": "https://github.com/dprince-03/News-Aggregator-API-#readme",
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.10",
+    "pm2": "^6.0.13"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}
