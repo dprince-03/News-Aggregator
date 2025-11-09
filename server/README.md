@@ -741,7 +741,7 @@ kill -9 $(lsof -ti:5080)
 
 ## License
 
-ISC
+NON
 
 ## Support
 
