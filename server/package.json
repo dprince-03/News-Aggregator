@@ -1,0 +1,88 @@
+{
+  "name": "news-aggregator-api-",
+  "version": "1.0.0",
+  "description": "a RESTful API for a news aggregator service that fetches articles from various sources and provides endpoints for a frontend application to consume.",
+  "main": "server.js",
+  "scripts": {
+    "test": "cross-env NODE_ENV=test jest --detectOpenHandles --forceExit",
+    "test:watch": "cross-env NODE_ENV=test jest --watch",
+    "test:coverage": "cross-env NODE_ENV=test jest --coverage",
+    "test:auth": "cross-env NODE_ENV=test jest tests/auth.test.js",
+    "test:articles": "cross-env NODE_ENV=test jest tests/articles.test.js",
+    "test:preferences": "cross-env NODE_ENV=test jest tests/preferences.test.js",
+    "test:admin": "cross-env NODE_ENV=test jest tests/admin.test.js",
+    "test:models": "cross-env NODE_ENV=test jest tests/models.test.js",
+    "test:integration": "cross-env NODE_ENV=test jest tests/integration.test.js",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "secrets:gen": "node src/utils/secrets.utils.js generate",
+    "secrets:check": "node src/utils/secrets.utils.js validate",
+    "secrets:backup": "node src/utils/secrets.utils.js backup",
+    "secrets:prod": "node src/utils/secrets.utils.js env production",
+    "secrets:regen": "node src/utils/secrets.utils.js force",
+    "stats": "node scripts/view-api-stats.js",
+    "stats:7": "node scripts/view-api-stats.js 7",
+    "stats:30": "node scripts/view-api-stats.js 30"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "testTimeout": 30000,
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dprince-03/News-Aggregator-API-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dprince-03/News-Aggregator-API-/issues"
+  },
+  "homepage": "https://github.com/dprince-03/News-Aggregator-API-#readme",
+  "dependencies": {
+    "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "express-session": "^1.18.2",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "mysql2": "^3.15.2",
+    "node-cache": "^5.1.2",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.9",
+    "passport": "^0.7.0",
+    "passport-facebook": "^3.0.0",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-jwt": "^4.0.1",
+    "passport-local": "^1.0.0",
+    "passport-oauth2": "^1.8.0",
+    "passport-twitter": "^0.1.5",
+    "sequelize": "^6.37.7",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.18.3",
+    "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "cross-env": "^10.1.0",
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.10",
+    "pm2": "^6.0.13",
+    "sequelize-cli": "^6.6.3",
+    "supertest": "^7.1.4"
+  }
+}

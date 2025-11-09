@@ -1,0 +1,23 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "D'Prince",
+            "database": "news_aggregator",
+            "username": "prince",
+            "password": "@Dev_prince_123",
+            "connectionTimeout": 300
+        }
+    ],
+    "dataworkspace.excludedProjects": [
+        "news_aggregator/news_aggregator.sqlproj"
+    ]
+}
