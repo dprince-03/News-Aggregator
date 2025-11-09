@@ -55,7 +55,7 @@ const validateEnvironmentSecrets = () => {
         console.error('-- Missing required secrets:');
         missingSecrets.forEach(key => console.error(`   • ${key}`));
         console.error('\n-- To fix this, run:');
-        console.error('   node src/utils/secrets.utils.js generate\n');
+        console.error('   node server/src/utils/secrets.utils.js generate\n');
         process.exit(1);
     }
 
@@ -63,7 +63,7 @@ const validateEnvironmentSecrets = () => {
         console.warn('--  Weak secrets detected (use production-grade secrets):');
         weakSecrets.forEach(key => console.warn(`   • ${key}`));
         console.warn('\n-- To regenerate, run:');
-        console.warn('   node src/utils/secrets.utils.js force\n');
+        console.warn('   node server/src/utils/secrets.utils.js force\n');
         
         if (process.env.NODE_ENV === 'production') {
             console.error('-- Cannot start in production with weak secrets!\n');

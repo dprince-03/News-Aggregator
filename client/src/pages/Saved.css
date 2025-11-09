@@ -1,0 +1,37 @@
+.saved-page {
+  padding: var(--spacing-2xl) 0;
+}
+
+.saved-header {
+  text-align: center;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.saved-header h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.saved-header p {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.load-more-section {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-2xl);
+}
+
+@media (max-width: 768px) {
+  .saved-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .saved-header p {
+    font-size: 1rem;
+  }
+}

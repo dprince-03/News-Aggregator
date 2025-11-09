@@ -1,6 +1,6 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth.middleware');
-const { getPreferences, updatePreferences, getAvailableSources, getAvailableCategories } = require('../controllers/preference.controller');
+const { getPreferences, updatePreferences, getAvailableSources, getAvailableCategories } = require('../controllers/preference.controllers');
 const { updatePreferenceValidation } = require('../middleware/validator.middleware');
 
 const preferenceRouter = express.Router();

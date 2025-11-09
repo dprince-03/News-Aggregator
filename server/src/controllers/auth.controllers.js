@@ -19,9 +19,9 @@ const registerUser = asyncHandler( async (req, res, next) => {
     }
 
     const user = await User.create({
+        name, 
         email,
         password,
-        name, 
     });
 
     const token = generateToken(user);

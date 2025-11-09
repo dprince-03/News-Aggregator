@@ -1,6 +1,6 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth.middleware');
-const { getApiLogs, getApiStats, getApiLogsBySource, cleanupOldLogs } = require('../controllers/admin.controller');
+const { getApiLogs, getApiStats, getApiLogsBySource, cleanupOldLogs } = require('../controllers/admin.controllers');
 
 const adminRouter = express.Router();
 

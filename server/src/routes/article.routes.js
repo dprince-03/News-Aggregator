@@ -1,6 +1,6 @@
 const express = require('express');
 const { authenticate, optionalAuth } = require('../middleware/auth.middleware');
-const { getAllArticles, getArticleById, searchArticles, filterArticles, getPersonalizedFeed, saveArticle, unsaveArticle, getSavedArticles } = require('../controllers/article.controller');
+const { getAllArticles, getArticleById, searchArticles, filterArticles, getPersonalizedFeed, saveArticle, unsaveArticle, getSavedArticles } = require('../controllers/article.controllers');
 
 const articleRouter = express.Router();
 

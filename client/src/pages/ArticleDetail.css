@@ -1,0 +1,230 @@
+.article-detail-page {
+  padding: var(--spacing-2xl) 0;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.back-button:hover {
+  color: var(--primary);
+  background-color: var(--gray-100);
+}
+
+.article-detail {
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.article-detail-header {
+  padding: var(--spacing-2xl);
+  padding-bottom: var(--spacing-xl);
+}
+
+.article-detail-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin: var(--spacing-lg) 0;
+}
+
+.article-detail-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border);
+}
+
+.article-detail-meta-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+}
+
+.article-source {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.meta-divider {
+  color: var(--gray-400);
+}
+
+.article-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.action-button:hover {
+  background-color: var(--gray-100);
+  border-color: var(--gray-300);
+}
+
+.action-button.saved {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.action-button.saved:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.article-detail-image {
+  width: 100%;
+  max-height: 500px;
+  overflow: hidden;
+  background-color: var(--gray-200);
+}
+
+.article-detail-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.article-detail-content {
+  padding: var(--spacing-2xl);
+}
+
+.article-description {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xl);
+  font-weight: 500;
+}
+
+.article-body {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.article-body p {
+  margin-bottom: var(--spacing-lg);
+}
+
+.article-source-link {
+  margin-top: var(--spacing-2xl);
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--border);
+}
+
+.article-source-link p {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.article-source-link a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.article-source-link a:hover {
+  text-decoration: underline;
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  text-align: center;
+  min-height: 400px;
+}
+
+.error-container svg {
+  color: var(--danger);
+  margin-bottom: var(--spacing-lg);
+}
+
+.error-container h2 {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.error-container p {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+  .article-detail-title {
+    font-size: 1.875rem;
+  }
+
+  .article-detail-header,
+  .article-detail-content {
+    padding: var(--spacing-lg);
+  }
+
+  .article-description {
+    font-size: 1.125rem;
+  }
+
+  .article-body {
+    font-size: 1rem;
+  }
+
+  .article-detail-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .article-detail-actions {
+    width: 100%;
+  }
+
+  .action-button {
+    flex: 1;
+    justify-content: center;
+  }
+}
