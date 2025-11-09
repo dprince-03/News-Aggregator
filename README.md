@@ -9,6 +9,7 @@ A full-stack news aggregator application that fetches articles from various sour
 ## Features
 
 ### Backend API
+
 - **RESTful API** with Express.js
 - **User Authentication** (JWT + OAuth support for Google, Facebook, Twitter)
 - **Article Aggregation** from multiple news sources
@@ -21,6 +22,7 @@ A full-stack news aggregator application that fetches articles from various sour
 - **Automated Article Fetching** with cron jobs
 
 ### Frontend Application
+
 - **Modern React UI** with responsive design
 - **User Authentication** with secure login/register
 - **News Feed** with infinite scroll
@@ -68,6 +70,7 @@ News-Aggregator-API-/
 ## Tech Stack
 
 ### Backend
+
 - **Runtime**: Node.js 16+
 - **Framework**: Express.js
 - **Database**: MySQL with Sequelize ORM
@@ -79,6 +82,7 @@ News-Aggregator-API-/
 - **Documentation**: Swagger/OpenAPI
 
 ### Frontend
+
 - **Library**: React 18
 - **Build Tool**: Vite
 - **Routing**: React Router v6
@@ -215,12 +219,14 @@ This will start both the backend (port 5080) and frontend (port 3000) concurrent
 **Option 2: Run separately**
 
 Terminal 1 - Backend:
+
 ```bash
 cd server
 npm run dev
 ```
 
 Terminal 2 - Frontend:
+
 ```bash
 cd client
 npm run dev
@@ -286,6 +292,7 @@ Once the server is running, access the API documentation at:
 ### Main Endpoints
 
 #### Authentication
+
 - `POST /api/auth/register` - Register a new user
 - `POST /api/auth/login` - Login user
 - `POST /api/auth/logout` - Logout user
@@ -296,6 +303,7 @@ Once the server is running, access the API documentation at:
 - `POST /api/auth/reset-password` - Reset password
 
 #### Articles
+
 - `GET /api/articles` - Get all articles (paginated)
 - `GET /api/articles/:id` - Get single article
 - `GET /api/articles/search` - Search articles
@@ -306,12 +314,14 @@ Once the server is running, access the API documentation at:
 - `DELETE /api/articles/:id/save` - Unsave article (auth required)
 
 #### Preferences
+
 - `GET /api/preferences` - Get user preferences (auth required)
 - `PUT /api/preferences` - Update preferences (auth required)
 - `GET /api/preferences/sources` - Get available sources
 - `GET /api/preferences/categories` - Get available categories
 
 #### Admin
+
 - `GET /api/admin/api-logs` - Get API logs (admin only)
 - `GET /api/admin/api-logs/stats` - Get API statistics (admin only)
 
@@ -320,12 +330,14 @@ Once the server is running, access the API documentation at:
 The application uses two types of logging:
 
 ### 1. Winston Logger (logger.utils.js)
+
 - Saves to FILES (`logs/*.log`)
 - For: General app logs, errors, debugging
 - Format: Text/JSON files
 - Purpose: Development debugging, error tracking
 
 ### 2. API Log Model (apiLog.models.js)
+
 - Saves to DATABASE (`api_logs` table)
 - For: API request statistics, monitoring
 - Format: MySQL rows
@@ -360,6 +372,7 @@ npm run test:coverage
 ## Performance Optimizations
 
 ### Backend
+
 - Database query optimization with indexes
 - Request caching with node-cache
 - Pagination for large datasets
@@ -367,6 +380,7 @@ npm run test:coverage
 - Efficient article aggregation with cron jobs
 
 ### Frontend
+
 - Code splitting with React Router
 - Lazy loading of images
 - Debounced search inputs
@@ -398,11 +412,13 @@ npm run test:coverage
 ## Environment Variables
 
 ### Required Backend Variables
+
 - `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` - Database config
 - `JWT_SECRET`, `JWT_REFRESH_SECRET` - Authentication
 - At least one news API key (NewsAPI, Guardian, or NYT)
 
 ### Optional Backend Variables
+
 - OAuth credentials (Google, Facebook, Twitter)
 - Email configuration (for password reset)
 - Redis URL (for advanced caching)
@@ -421,7 +437,7 @@ This project is licensed under the ISC License.
 
 ## Author
 
-dprince-03
+dprince-03 (Adejare Adedayo)
 
 ## Support
 
