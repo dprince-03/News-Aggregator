@@ -3,7 +3,7 @@ const passport = require('passport');
 const User = require('../models/user.models');
 const { asyncHandler, AppError } = require('../middleware/errorHandler.middleware');
 const { generateToken, generateRefreshToken, generateResetToken, verifyResetToken } = require('../middleware/auth.middleware');
-// const emailService = require("../utils/emailService");
+const emailService = require("../utils/emailServices.utils");
 
 // ============================================
 // @desc    Register a new user
@@ -53,8 +53,8 @@ const login = asyncHandler(async (req, res, next) => {
             throw new AppError(info?.message || "Invalid credentials", 401);            
         }
 
-        const token = generateToken();
-        const refreshToken = generateRefreshToken();
+        const token = generateToken(user);
+        const refreshToken = generateRefreshToken(user);
 
         res.status(200).json({
             success: true,
@@ -183,7 +183,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
     const resetToken = generateResetToken(user);
 
     // send email with reset link here
-    // await emailService.sendPasswordResetEmail(user.email, resetToken);
+    await emailService.sendPasswordResetEmail(user.email, resetToken);
 
     res.status(200).json({
         success: true,

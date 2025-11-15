@@ -146,7 +146,7 @@ const displayApiKeysStatus = () => {
     ];
 
     sources.forEach(source => {
-        const status = source.enabled ? '✅' : '❌';
+        const status = source.enabled ? 'ok' : 'bad';
         const statusText = source.enabled ? 'Enabled' : 'Disabled';
         console.log(`   ${status} ${source.name.padEnd(20)} ${statusText}`);
     });

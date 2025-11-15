@@ -1,6 +1,7 @@
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
+const ApiLog = require('../models/apiLog.models');
 
 // Define log format
 const logFormat = winston.format.combine(
@@ -69,7 +70,7 @@ const logger = winston.createLogger({
     exitOnError: false,
 });
 
-// NEW: Enhanced request logging with database option
+// Enhanced request logging with database option
 logger.logRequest = async (req, res, responseTime, saveToDb = true) => {
     const logData = {
         method: req.method,
@@ -86,7 +87,6 @@ logger.logRequest = async (req, res, responseTime, saveToDb = true) => {
     // Optionally save to database
     if (saveToDb && process.env.ENABLE_DB_LOGGING === 'true') {
         try {
-            const { ApiLog } = require('../models');
             await ApiLog.create({
                 api_source: 'Internal API',
                 endpoint: req.originalUrl,
@@ -95,7 +95,7 @@ logger.logRequest = async (req, res, responseTime, saveToDb = true) => {
             });
         } catch (error) {
             // Don't let DB logging errors break the app
-            logger.error('Failed to save request log to database', { error: error.message });
+            logger.error('Failed to save request log to database', { error: error.message,  endpoint: req.originalUrl  });
         }
     }
 };
@@ -132,23 +132,23 @@ module.exports = logger;
 │              YOUR LOGGING ARCHITECTURE                  │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  1. FILE LOGGING (Winston)                             │
-│     Location: logs/*.log                               │
-│     Purpose: Debug, errors, general app logs           │
-│     Retention: 14 days (rotating)                      │
+│  1. FILE LOGGING (Winston)                              │
+│     Location: logs/*.log                                │
+│     Purpose: Debug, errors, general app logs            │
+│     Retention: 14 days (rotating)                       │
 │                                                         │
 │  2. DATABASE LOGGING (ApiLog Model)                     │
-│     Location: MySQL api_logs table                     │
-│     Purpose: API performance, statistics, analytics    │
-│     Retention: Unlimited (manual cleanup)              │
+│     Location: MySQL api_logs table                      │
+│     Purpose: API performance, statistics, analytics     │
+│     Retention: Unlimited (manual cleanup)               │
 │                                                         │
 │  WHEN DOES EACH LOG?                                    │
-│  ────────────────────────────────────────────────────  │
-│  • External API calls → BOTH (file + database)         │
-│  • Internal API requests → FILE only (optional DB)     │
-│  • Application errors → FILE only                      │
-│  • Debug messages → FILE only                          │
-│  • Security events → FILE only                         │
+│  ────────────────────────────────────────────────────   │
+│  • External API calls → BOTH (file + database)          │
+│  • Internal API requests → FILE only (optional DB)      │
+│  • Application errors → FILE only                       │
+│  • Debug messages → FILE only                           │
+│  • Security events → FILE only                          │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 

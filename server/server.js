@@ -16,6 +16,8 @@ const authRouter = require('./src/routes/auth.routes');
 const adminRouter = require('./src/routes/admin.routes');
 const articleRouter = require('./src/routes/article.routes');
 const preferenceRouter = require('./src/routes/preference.routes');
+const { displayApiKeysStatus } = require('./src/config/apiKeys.config');
+const { setupSwagger } = require('./src/config/swagger.config');
 
 const app = express();
 const PORT = process.env.PORT || 5080
@@ -71,7 +73,7 @@ const validateEnvironmentSecrets = () => {
         }
     }
 
-    console.log('✅ All required secrets are valid\n');
+    console.log('All required secrets are valid\n');
 };
 
 // ========================
@@ -142,7 +144,7 @@ app.use(morgan('dev'));
 // ====================
 // request logging middleware
 // ====================
-app.use((req, res,next) => {
+app.use((req, res, next) => {
     const startTime = Date.now();
 
     res.on('finish', () => {
@@ -167,6 +169,28 @@ app.use((req, res, next) => {
 // =======================
 // ROUTES
 // =======================
+// Root endpoint - API info
+app.get('/', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'News Aggregator API',
+        version: '1.0.0',
+        documentation: {
+            swagger: `http://localhost:${PORT}/api/docs`,
+            // postman: 'https://documenter.getpostman.com/view/your-collection',
+        },
+        support: {
+            email: 'support@newsaggregator.com', // replace with actual support email
+            github: 'https://github.com/yourusername/news-aggregator-api', // replace with actual repo
+        },
+        endpoints: {
+            api: '/api',
+            health: '/api/health',
+            docs: '/api/docs',
+        },
+    });
+});
+
 app.use('/api', limiter);
 
 // Root endpoint
@@ -175,24 +199,57 @@ app.get('/api', (req, res) => {
         success: true,
         message: 'News Aggregator API',
         version: '1.0.0',
+        timestamp: new Date().toISOString(),
         endpoints: {
             health: '/api/health',
-            auth: {
-                register: 'POST /api/auth/register',
-                login: 'POST /api/auth/login',
-                logout: 'POST /api/auth/logout',
-                profile: 'GET /api/auth/me',
-                updateProfile: 'PUT /api/auth/profile',
-                changePassword: 'PUT /api/auth/change-password',
-                forgotPassword: 'POST /api/auth/forgot-password',
-                resetPassword: 'POST /api/auth/reset-password',
-                refreshToken: 'POST /api/auth/refresh-token',
-                google: 'GET /api/auth/google',
-                facebook: 'GET /api/auth/facebook',
-                twitter: 'GET /api/auth/twitter'
-            }
+            authentication: {
+                register: { method: 'POST', path: '/api/auth/register', description: 'Register a new user' },
+                login: { method: 'POST', path: '/api/auth/login', description: 'Login user' },
+                logout: { method: 'POST', path: '/api/auth/logout', description: 'Logout user', auth: true },
+                profile: { method: 'GET', path: '/api/auth/me', description: 'Get current user profile', auth: true },
+                updateProfile: { method: 'PUT', path: '/api/auth/profile', description: 'Update user profile', auth: true },
+                changePassword: { method: 'PUT', path: '/api/auth/change-password', description: 'Change password', auth: true },
+                forgotPassword: { method: 'POST', path: '/api/auth/forgot-password', description: 'Request password reset' },
+                resetPassword: { method: 'POST', path: '/api/auth/reset-password', description: 'Reset password with token' },
+                refreshToken: { method: 'POST', path: '/api/auth/refresh-token', description: 'Refresh JWT token' },
+            },
+            oauth: {
+                google: { method: 'GET', path: '/api/auth/google', description: 'Login with Google' },
+                facebook: { method: 'GET', path: '/api/auth/facebook', description: 'Login with Facebook' },
+                twitter: { method: 'GET', path: '/api/auth/twitter', description: 'Login with Twitter' },
+            },
+            articles: {
+                getAll: { method: 'GET', path: '/api/articles', description: 'Get all articles (paginated)' },
+                getById: { method: 'GET', path: '/api/articles/:id', description: 'Get single article by ID' },
+                search: { method: 'GET', path: '/api/articles/search?q=keyword', description: 'Search articles' },
+                filter: { method: 'GET', path: '/api/articles/filter', description: 'Filter articles by criteria' },
+                personalized: { method: 'GET', path: '/api/articles/personalized', description: 'Get personalized feed', auth: true },
+                saved: { method: 'GET', path: '/api/articles/saved', description: 'Get saved articles', auth: true },
+                save: { method: 'POST', path: '/api/articles/:id/save', description: 'Save article (bookmark)', auth: true },
+                unsave: { method: 'DELETE', path: '/api/articles/:id/save', description: 'Unsave article', auth: true },
+            },
+            preferences: {
+                get: { method: 'GET', path: '/api/preferences', description: 'Get user preferences', auth: true },
+                update: { method: 'PUT', path: '/api/preferences', description: 'Update user preferences', auth: true },
+                sources: { method: 'GET', path: '/api/preferences/sources', description: 'Get available news sources' },
+                categories: { method: 'GET', path: '/api/preferences/categories', description: 'Get available categories' },
+            },
+            admin: {
+                stats: { method: 'GET', path: '/api/admin/api-logs/stats', description: 'Get API statistics', auth: true },
+                logs: { method: 'GET', path: '/api/admin/api-logs', description: 'Get API logs', auth: true },
+                logsBySource: { method: 'GET', path: '/api/admin/api-logs/source/:source', description: 'Get logs by source', auth: true },
+                cleanup: { method: 'DELETE', path: '/api/admin/api-logs/cleanup', description: 'Cleanup old logs', auth: true },
+            },
         },
-        documentation: '/api/docs'
+        documentation: {
+            swagger: `http://localhost:${PORT}/api/docs`,
+            interactive: 'Visit /api/docs for interactive API documentation',
+        },
+        notes: {
+            authentication: 'Endpoints marked with "auth: true" require JWT Bearer token',
+            rateLimit: '100 requests per 15 minutes per IP',
+            pagination: 'Default: page=1, limit=20',
+        },
     });
 });
 
@@ -200,11 +257,21 @@ app.get('/api', (req, res) => {
 app.get('/api/health', (req, res) => {
     res.status(200).json({
         success: true,
+        status: 'healthy',
         message: 'News Aggregator API is running',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         environment: process.env.NODE_ENV || 'development',
         version: process.env.npm_package_version || '1.0.0',
+        services: {
+            database: 'connected',
+            cache: 'active',
+            externalAPIs: {
+                newsapi: !!process.env.NEWSAPI_KEY,
+                guardian: !!process.env.GUARDIAN_API_KEY,
+                nyt: !!process.env.NYT_API_KEY,
+            },
+        },
     });
 });
 
@@ -230,21 +297,32 @@ const start_server = async () => {
         console.log('='.repeat(50));
         console.log('');
 
-        // Start cron job 
-        if (process.env.ENABLE_CRON ==='true') {
-            startArticleFetchJob();
-        }
-        
         // Validate environment secrets
         validateEnvironmentSecrets();
 
+        // Display API keys status
+        displayApiKeysStatus();
+        
         // Initialize database
         console.log('-- Connecting to database...\n');        
         const dbconnect = await testConnection();
+
         if (!dbconnect) {
             console.error("Failed to connect to database");
             console.error("Please check your database configuration in .env file");
             process.exit(1);
+        }
+
+        // Setup Swagger documentation
+        setupSwagger(app);
+        
+        // Start cron job 
+        if (process.env.ENABLE_CRON ==='true') {
+            console.log('-- Starting automated article fetching...\n');
+            startArticleFetchJob();
+        } else {
+            console.log('--  Automated article fetching is disabled');
+            console.log('   Set ENABLE_CRON=true in .env to enable\n');
         }
 
         // Start HTTP Server 
@@ -269,6 +347,12 @@ const start_server = async () => {
             console.log('='.repeat(50));
             console.log('');
 
+            // Log to file
+            logger.info('Server started successfully', {
+                port: PORT,
+                environment: process.env.NODE_ENV || 'development',
+                pid: process.pid,
+            });
         });
 
         // GRACEFUL SHUTDOWN
@@ -277,9 +361,9 @@ const start_server = async () => {
             console.log('='.repeat(50));
             console.log(`${signal} received. Shutting down gracefully...`);
             console.log('='.repeat(50));
+            console.log('');
 
             server.close(async () => {
-                console.log('');
                 console.log('HTTP server closed');
                 
                 // Close database connections
@@ -290,6 +374,8 @@ const start_server = async () => {
                 console.log('');
                 console.log('Goodbye!');
                 console.log('');
+
+                logger.info('Server shutdown complete', { signal });
                 process.exit(0);
             });
 
@@ -298,6 +384,8 @@ const start_server = async () => {
             console.error('');
             console.error('Forcing server shutdown after timeout...');
             console.error('');
+
+            logger.error('Forced shutdown due to timeout');
             process.exit(1);
             }, 10000);
         };
@@ -311,6 +399,7 @@ const start_server = async () => {
             console.error('');
             console.error('-- Uncaught Exception:', err);
             console.error('');
+            logger.error('Uncaught Exception', { error: err.message, stack: err.stack });
             shutdown('UNCAUGHT_EXCEPTION');
         });
 
@@ -320,6 +409,7 @@ const start_server = async () => {
             console.error('-- Unhandled Rejection at:', promise);
             console.error('Reason:', reason);
             console.error('');
+            logger.error('Unhandled Rejection', { reason, promise });
             shutdown('UNHANDLED_REJECTION');
         });
         
@@ -332,6 +422,12 @@ const start_server = async () => {
         console.error('Error:', error.message);
         console.error('Stack:', error.stack);
         console.error('');
+
+        logger.error('Server startup failed', { 
+            error: error.message, 
+            stack: error.stack 
+        });
+
         process.exit(1);
     }
 };
