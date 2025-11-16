@@ -1,4 +1,6 @@
 require('dotenv').config();
+require('./src/config/passport.config');
+
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -99,7 +101,7 @@ const helmetConfig = {
 	contentSecurityPolicy: {
 		directives: {
 			defaultSrc: ["'self'"],
-			styleSrce: ["'self'", "https:", "'unsafe-inline'"],
+			styleSrc: ["'self'", "https:", "'unsafe-inline'"],
 			scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
 			imgSrc: ["'self'", "data:", "https:"],
 			connectSrc: ["'self'", "https:"],

@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { sequelize } = require('../src/models');
+const { sequelize, User } = require('../src/models');
 
 // Setup before all tests
 beforeAll(async () => {
@@ -15,8 +15,4 @@ afterAll(async () => {
     console.log('Test database connection closed');
 });
 
-// Clean up after each test
-afterEach(async () => {
-    // Clear test data
-    await User.destroy({ where: {}, force: true });
-});
+

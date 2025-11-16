@@ -6,7 +6,7 @@ const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const FacebookStrategy = require("passport-facebook").Strategy;
 const TwitterStrategy = require("passport-twitter").Strategy;
 
-const { User } = require("../models");
+const User = require("../models/user.models");
 const authConfig = require("./auth.config");
 
 // ============================================
@@ -21,7 +21,9 @@ passport.use(
 	"jwt",
 	new JwtStrategy(jwtOptions, async (jwtPayload, done) => {
 		try {
-			const user = await User.findByPk(jwtPayload.id);
+			const user = await User.findByPk(jwtPayload.id, {
+				attributes: { exclude: ['password'] },
+			});
 
 			if (!user) {
 				return done(null, false);

@@ -28,7 +28,7 @@ authRouter.post('/reset-password', resetPasswordValidation, resetPassword);
 // ============================================
 // Google OAuth Routes
 // ============================================
-authRouter.get('/google', passport.authenticate('google', { scope: ['proflie', 'email'], session: false, }));
+authRouter.get('/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false, }));
 
 authRouter.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: '/login' }, googleCallback));
 

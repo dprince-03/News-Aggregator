@@ -11,6 +11,16 @@ const User = sequelize.define(
 			primaryKey: true,
 			autoIncrement: true,
 		},
+		name: {
+			type: DataTypes.STRING(255),
+			allowNull: false,
+			validate: {
+				len: {
+					args: [2, 255],
+					msg: "Name must be at least 2 characters long",
+				},
+			},
+		},
 		email: {
 			type: DataTypes.STRING(255),
 			allowNull: false,
@@ -52,16 +62,6 @@ const User = sequelize.define(
 				},
 			},
 		},
-		name: {
-			type: DataTypes.STRING(255),
-			allowNull: false,
-			validate: {
-				len: {
-					args: [2, 255],
-					msg: "Name must be at least 2 characters long",
-				},
-			},
-		},
 		google_id: {
 			type: DataTypes.STRING(255),
 			allowNull: true,
@@ -81,7 +81,7 @@ const User = sequelize.define(
 			type: DataTypes.STRING(512),
 			allowNull: true,
 		},
-		create_at: {
+		created_at: {
 			type: DataTypes.DATE,
 			allowNull: false,
 			defaultValue: DataTypes.NOW,
@@ -135,7 +135,7 @@ User.prototype.toJSON = function () {
 User.findByEmailWithPassword = async function (email) {
     return await User.findOne({
         where: { email },
-        attributes: ['id', 'email', 'password', 'name', 'create_at', 'updated_at'],
+        attributes: ['id', 'email', 'password', 'name', 'created_at', 'updated_at'],
     });
 };
 

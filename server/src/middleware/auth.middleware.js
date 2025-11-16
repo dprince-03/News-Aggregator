@@ -28,7 +28,7 @@ const authenticate = (req, res, next) => {
             req.user = user;
             next();
         },
-    ); 
+    )(req, res, next); 
 };
 
 const optionalAuth = (req, res, next) => {

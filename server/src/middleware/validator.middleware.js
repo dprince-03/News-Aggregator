@@ -54,11 +54,13 @@ const loginValidation = [
 ];
 
 const changePasswordValidation = [
-    body('currectPassword')
+    body('currentPassword')
     .notEmpty()
     .withMessage('Current password is required'),
 
     body('newPassword')
+    .notEmpty()
+    .withMessage('New password is required')
     .isLength({ min: 8 })
     .withMessage('New password must be at least 8 characters long')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
@@ -69,11 +71,11 @@ const changePasswordValidation = [
     .withMessage('Password confirmation is required')
     .custom(
         (value, { req }) => {
-			if (value !== req.body.newPassword) {
-				throw new Error("Passwords do not match");
-			}
-			return true;
-		}
+            if (value !== req.body.newPassword) {
+                throw new Error("Passwords do not match");
+            }
+            return true;
+        }
     ),
 
     validate,

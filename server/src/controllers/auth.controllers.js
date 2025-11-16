@@ -44,7 +44,7 @@ const registerUser = asyncHandler( async (req, res, next) => {
 // @access  Public
 // ============================================
 const login = asyncHandler(async (req, res, next) => {
-    passport.authenticate('local', { session: true }, (err, user, info) => {
+    passport.authenticate('local', { session: false }, (err, user, info) => {
         if (err) {
             return next(err);
         }
@@ -65,7 +65,7 @@ const login = asyncHandler(async (req, res, next) => {
                 refreshToken,
             },
         })
-    });
+    })(req, res, next);
 });
 
 // ============================================
@@ -110,12 +110,12 @@ const updateProfile = asyncHandler(async (req, res, next) => {
 
     const user = await User.findByPk(req.user.id);
 
-    if (user) {
+    if (!user) {
         throw new AppError("User not found", 404);
     }
 
     if (email && email !== user.email) {
-        const existingUser = await User.findByOne({ where: { email } });
+        const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
             throw new AppError("Email already in use", 409);
         }
@@ -149,7 +149,7 @@ const changePassword = asyncHandler(async (req, res, next) => {
         throw new AppError("User not found", 404);
     }
 
-    const isMatch = await User.comparePassword(currentPassword);
+    const isMatch = await user.comparePassword(currentPassword);
 
     if (!isMatch) {
         throw new AppError("Current password is incorrect", 401);
@@ -173,10 +173,10 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
     const user = await User.findOne({ where: {email} });
 
-    if (user) {
+    if (!user) {
         return res.json({
             success: true,
-            message: 'ok',
+            message: 'If the email exists, a reset link has been sent',
         });
     }
 
