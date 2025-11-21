@@ -1,7 +1,7 @@
-const gnewsService = require('./gnews.services');
+const gnewsService = require('./gnews.service');
 const newsApiService = require('./news_api.services');
-const guardianService = require('./guardian.services');
-const nytService = require('./nyt.services');
+const guardianService = require('./guardian.service');
+const nytService = require('./nyt.service');
 const { Article } = require('../models/article.models');
 const { removeDuplicates } = require('../utils/helper.utils');
 const logger = require('../utils/logger.utils');
