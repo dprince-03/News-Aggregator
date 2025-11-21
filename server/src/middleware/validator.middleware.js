@@ -55,10 +55,14 @@ const loginValidation = [
 
 const changePasswordValidation = [
     body('currentPassword')
+    .exists()
+    .withMessage('Current password is required')
     .notEmpty()
     .withMessage('Current password is required'),
 
     body('newPassword')
+    .exists()
+    .withMessage('New password is required')
     .notEmpty()
     .withMessage('New password is required')
     .isLength({ min: 8 })
@@ -67,6 +71,8 @@ const changePasswordValidation = [
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
 
     body('confirmPassword')
+    .exists()
+    .withMessage('Password confirmation is required')
     .notEmpty()
     .withMessage('Password confirmation is required')
     .custom(
