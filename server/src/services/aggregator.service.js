@@ -1,5 +1,4 @@
 const gnewsService = require('./gnews.service');
-const newsApiService = require('./news_api.services');
 const guardianService = require('./guardian.service');
 const nytService = require('./nyt.service');
 const { Article } = require('../models/article.models');

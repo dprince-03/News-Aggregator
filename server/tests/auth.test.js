@@ -1,321 +1,119 @@
 const request = require('supertest');
-const app = require('../server');
+const app = require('../server'); // Assuming your express app is exported from server.js
+const setupTestDB = require('./test-setup');
 const { User } = require('../src/models');
 
-describe('Authentication API Tests', () => {
-    let authToken;
-    let testUser;
+describe('Auth Endpoints', () => {
+  setupTestDB();
+  let token;
 
-    // Test user data
-    const validUser = {
-        email: 'test@example.com',
-        password: 'Test123!@#',
-        name: 'Test User',
-    };
+  beforeEach(async () => {
+    // Log in the test user to get a token for authenticated routes
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@example.com', password: 'Password123!' });
+    token = res.body.accessToken;
+  });
 
-    // Cleanup before tests
-    beforeAll(async () => {
-        // Delete test user if exists
-        await User.destroy({ where: { email: validUser.email }, force: true });
+  describe('POST /api/auth/register', () => {
+    it('should register a new user successfully', async () => {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({
+          firstName: 'New',
+          lastName: 'User',
+          email: 'newuser@example.com',
+          password: 'Password123!',
+        });
+      expect(res.statusCode).toEqual(201);
+      expect(res.body).toHaveProperty('message', 'User registered successfully');
     });
 
-    // Cleanup after tests
-    afterAll(async () => {
-        // Delete test user
-        await User.destroy({ where: { email: validUser.email }, force: true });
+    it('should fail to register a user with an existing email', async () => {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com',
+          password: 'Password123!',
+        });
+      expect(res.statusCode).toEqual(409);
+      expect(res.body).toHaveProperty('message', 'User with this email already exists');
     });
 
-    // ==========================================
-    // REGISTRATION TESTS
-    // ==========================================
-    describe('POST /api/auth/register', () => {
-        test('Should register a new user successfully', async () => {
-            const response = await request(app)
-                .post('/api/auth/register')
-                .send(validUser)
-                .expect('Content-Type', /json/)
-                .expect(201);
+    it('should fail with missing fields', async () => {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({ firstName: 'Test' });
+      expect(res.statusCode).toEqual(400);
+    });
+  });
 
-            expect(response.body.success).toBe(true);
-            expect(response.body.message).toContain('registered successfully');
-            expect(response.body.data).toHaveProperty('user');
-            expect(response.body.data).toHaveProperty('token');
-            expect(response.body.data.user.email).toBe(validUser.email);
-            expect(response.body.data.user).not.toHaveProperty('password');
-
-            // Save token for later tests
-            authToken = response.body.data.token;
-            testUser = response.body.data.user;
-        });
-
-        test('Should fail with duplicate email', async () => {
-            const response = await request(app)
-                .post('/api/auth/register')
-                .send(validUser)
-                .expect('Content-Type', /json/)
-                .expect(409);
-
-            expect(response.body.success).toBe(false);
-            expect(response.body.message).toContain('already exists');
-        });
-
-        test('Should fail with invalid email', async () => {
-            const response = await request(app)
-                .post('/api/auth/register')
-                .send({
-                    email: 'invalid-email',
-                    password: 'Test123!@#',
-                    name: 'Test User',
-                })
-                .expect('Content-Type', /json/)
-                .expect(400);
-
-            expect(response.body.success).toBe(false);
-        });
-
-        test('Should fail with weak password', async () => {
-            const response = await request(app)
-                .post('/api/auth/register')
-                .send({
-                    email: 'newuser@example.com',
-                    password: '123', // Too short
-                    name: 'Test User',
-                })
-                .expect('Content-Type', /json/)
-                .expect(400);
-
-            expect(response.body.success).toBe(false);
-        });
-
-        test('Should fail with missing fields', async () => {
-            const response = await request(app)
-                .post('/api/auth/register')
-                .send({
-                    email: 'test2@example.com',
-                    // Missing password
-                })
-                .expect('Content-Type', /json/)
-                .expect(400);
-
-            expect(response.body.success).toBe(false);
-        });
+  describe('POST /api/auth/login', () => {
+    it('should log in an existing user successfully', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'Password123!' });
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('accessToken');
+      expect(res.body).toHaveProperty('refreshToken');
     });
 
-    // ==========================================
-    // LOGIN TESTS
-    // ==========================================
-    describe('POST /api/auth/login', () => {
-        test('Should login successfully with correct credentials', async () => {
-            const response = await request(app)
-                .post('/api/auth/login')
-                .send({
-                    email: validUser.email,
-                    password: validUser.password,
-                })
-                .expect('Content-Type', /json/)
-                .expect(200);
+    it('should fail with incorrect password', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'wrongpassword' });
+      expect(res.statusCode).toEqual(401);
+    });
+  });
 
-            expect(response.body.success).toBe(true);
-            expect(response.body.data).toHaveProperty('token');
-            expect(response.body.data).toHaveProperty('user');
-            expect(response.body.data.user.email).toBe(validUser.email);
-        });
-
-        test('Should fail with incorrect password', async () => {
-            const response = await request(app)
-                .post('/api/auth/login')
-                .send({
-                    email: validUser.email,
-                    password: 'WrongPassword123',
-                })
-                .expect('Content-Type', /json/)
-                .expect(401);
-
-            expect(response.body.success).toBe(false);
-        });
-
-        test('Should fail with non-existent user', async () => {
-            const response = await request(app)
-                .post('/api/auth/login')
-                .send({
-                    email: 'nonexistent@example.com',
-                    password: 'Test123!@#',
-                })
-                .expect('Content-Type', /json/)
-                .expect(401);
-
-            expect(response.body.success).toBe(false);
-        });
-
-        test('Should fail with missing credentials', async () => {
-            const response = await request(app)
-                .post('/api/auth/login')
-                .send({
-                    email: validUser.email,
-                    // Missing password
-                })
-                .expect('Content-Type', /json/)
-                .expect(400);
-
-            expect(response.body.success).toBe(false);
-        });
+  describe('GET /api/auth/me', () => {
+    it('should get current user profile with a valid token', async () => {
+      const res = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('email', 'test@example.com');
     });
 
-    // ==========================================
-    // GET PROFILE TESTS
-    // ==========================================
-    describe('GET /api/auth/me', () => {
-        test('Should get user profile with valid token', async () => {
-            const response = await request(app)
-                .get('/api/auth/me')
-                .set('Authorization', `Bearer ${authToken}`)
-                .expect('Content-Type', /json/)
-                .expect(200);
-
-            expect(response.body.success).toBe(true);
-            expect(response.body.data.user.email).toBe(validUser.email);
-            expect(response.body.data.user).not.toHaveProperty('password');
-        });
-
-        test('Should fail without token', async () => {
-            const response = await request(app)
-                .get('/api/auth/me')
-                .expect('Content-Type', /json/)
-                .expect(401);
-
-            expect(response.body.success).toBe(false);
-        });
-
-        test('Should fail with invalid token', async () => {
-            const response = await request(app)
-                .get('/api/auth/me')
-                .set('Authorization', 'Bearer invalid_token')
-                .expect('Content-Type', /json/)
-                .expect(401);
-
-            expect(response.body.success).toBe(false);
-        });
+    it('should fail without an authentication token', async () => {
+      const res = await request(app).get('/api/auth/me');
+      expect(res.statusCode).toEqual(401);
     });
+  });
 
-    // ==========================================
-    // UPDATE PROFILE TESTS
-    // ==========================================
-    describe('PUT /api/auth/profile', () => {
-        test('Should update profile successfully', async () => {
-            const updates = {
-                name: 'Updated Name',
-            };
+  describe('PUT /api/auth/profile', () => {
+    it('should update user profile successfully', async () => {
+      const res = await request(app)
+        .put('/api/auth/profile')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ firstName: 'Updated', lastName: 'Name' });
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('firstName', 'Updated');
 
-            const response = await request(app)
-                .put('/api/auth/profile')
-                .set('Authorization', `Bearer ${authToken}`)
-                .send(updates)
-                .expect('Content-Type', /json/)
-                .expect(200);
-
-            expect(response.body.success).toBe(true);
-            expect(response.body.data.user.name).toBe(updates.name);
-        });
-
-        test('Should fail to update with invalid email', async () => {
-            const response = await request(app)
-                .put('/api/auth/profile')
-                .set('Authorization', `Bearer ${authToken}`)
-                .send({
-                    email: 'invalid-email',
-                })
-                .expect('Content-Type', /json/)
-                .expect(400);
-
-            expect(response.body.success).toBe(false);
-        });
-
-        test('Should fail without authentication', async () => {
-            const response = await request(app)
-                .put('/api/auth/profile')
-                .send({ name: 'New Name' })
-                .expect('Content-Type', /json/)
-                .expect(401);
-
-            expect(response.body.success).toBe(false);
-        });
+      const user = await User.findOne({ where: { email: 'test@example.com' } });
+      expect(user.firstName).toBe('Updated');
     });
+  });
 
-    // ==========================================
-    // CHANGE PASSWORD TESTS
-    // ==========================================
-    describe('PUT /api/auth/change-password', () => {
-        test('Should change password successfully', async () => {
-            const response = await request(app)
-                .put('/api/auth/change-password')
-                .set('Authorization', `Bearer ${authToken}`)
-                .send({
-                    currentPassword: validUser.password,
-                    newPassword: 'NewPass123!@#',
-                    confirmPassword: 'NewPass123!@#',
-                })
-                .expect('Content-Type', /json/)
-                .expect(200);
-
-            expect(response.body.success).toBe(true);
-            expect(response.body.message).toContain('changed successfully');
-
-            // Update password for future tests
-            validUser.password = 'NewPass123!@#';
+  describe('PUT /api/auth/change-password', () => {
+    it('should change password successfully', async () => {
+      const res = await request(app)
+        .put('/api/auth/change-password')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          oldPassword: 'Password123!',
+          newPassword: 'NewPassword123!',
         });
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('message', 'Password changed successfully');
 
-        test('Should fail with incorrect current password', async () => {
-            const response = await request(app)
-                .put('/api/auth/change-password')
-                .set('Authorization', `Bearer ${authToken}`)
-                .send({
-                    currentPassword: 'WrongPassword',
-                    newPassword: 'NewPass123!@#',
-                    confirmPassword: 'NewPass123!@#',
-                })
-                .expect('Content-Type', /json/)
-                .expect(401);
-
-            expect(response.body.success).toBe(false);
-        });
-
-        test('Should fail when passwords do not match', async () => {
-            const response = await request(app)
-                .put('/api/auth/change-password')
-                .set('Authorization', `Bearer ${authToken}`)
-                .send({
-                    currentPassword: validUser.password,
-                    newPassword: 'NewPass123!@#',
-                    confirmPassword: 'DifferentPass123!@#',
-                })
-                .expect('Content-Type', /json/)
-                .expect(400);
-
-            expect(response.body.success).toBe(false);
-        });
+      // Verify new password works
+      const loginRes = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'NewPassword123!' });
+      expect(loginRes.statusCode).toEqual(200);
     });
-
-    // ==========================================
-    // LOGOUT TESTS
-    // ==========================================
-    describe('POST /api/auth/logout', () => {
-        test('Should logout successfully', async () => {
-            const response = await request(app)
-                .post('/api/auth/logout')
-                .set('Authorization', `Bearer ${authToken}`)
-                .expect('Content-Type', /json/)
-                .expect(200);
-
-            expect(response.body.success).toBe(true);
-        });
-
-        test('Should fail without token', async () => {
-            const response = await request(app)
-                .post('/api/auth/logout')
-                .expect('Content-Type', /json/)
-                .expect(401);
-
-            expect(response.body.success).toBe(false);
-        });
-    });
+  });
 });

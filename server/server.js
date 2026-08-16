@@ -12,7 +12,7 @@ const session = require('express-session');
 
 const { testConnection, closeConnection } = require('./src/config/db.config');
 const { notFound, errorHandler } = require('./src/middleware/errorHandler.middleware');
-const { startArticleFetchJob } = require('./src/jobs/fetchArticles.jobs');
+const { startArticleFetchJob } = require('./src/jobs/fetchArticles.job');
 const logger = require('./src/utils/logger.utils');
 const authRouter = require('./src/routes/auth.routes');
 const adminRouter = require('./src/routes/admin.routes');

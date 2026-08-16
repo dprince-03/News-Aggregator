@@ -1,6 +1,6 @@
 const cron = require('node-cron');
-const { fetchAndSaveArticles } = require('../services/aggregator.services');
-const { ApiLog } = require('../models');
+const { fetchAndSaveArticles } = require('../services/aggregator.service');
+const { ApiLog } = require('../models/apiLog.models');
 
 /**
  * Fetch articles job
