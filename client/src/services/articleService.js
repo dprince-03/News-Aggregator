@@ -1,26 +1,35 @@
 import api from '../utils/api';
 
+// Article list endpoints return { success, message, data: [...], pagination }.
+// Normalize to { articles, pagination, ... } so pages don't need to know the
+// wire format, and `pagination` (already computed server-side) replaces the
+// old `articles.length === 20` guess at whether another page exists.
+const toArticleList = (body) => {
+  const { data, ...rest } = body;
+  return { ...rest, articles: data || [] };
+};
+
 const articleService = {
   // Get all articles with pagination
   async getArticles(page = 1, limit = 20) {
     const response = await api.get('/articles', {
       params: { page, limit }
     });
-    return response.data;
+    return toArticleList(response.data);
   },
 
   // Get single article by ID
   async getArticleById(id) {
     const response = await api.get(`/articles/${id}`);
-    return response.data;
+    return { ...response.data, article: response.data.data };
   },
 
   // Search articles
   async searchArticles(keyword, page = 1, limit = 20) {
     const response = await api.get('/articles/search', {
-      params: { keyword, page, limit }
+      params: { q: keyword, page, limit }
     });
-    return response.data;
+    return toArticleList(response.data);
   },
 
   // Filter articles
@@ -28,7 +37,7 @@ const articleService = {
     const response = await api.get('/articles/filter', {
       params: { ...filters, page, limit }
     });
-    return response.data;
+    return toArticleList(response.data);
   },
 
   // Get personalized feed
@@ -36,7 +45,7 @@ const articleService = {
     const response = await api.get('/articles/personalized', {
       params: { page, limit }
     });
-    return response.data;
+    return toArticleList(response.data);
   },
 
   // Get saved articles
@@ -44,7 +53,7 @@ const articleService = {
     const response = await api.get('/articles/saved', {
       params: { page, limit }
     });
-    return response.data;
+    return toArticleList(response.data);
   },
 
   // Save/bookmark article

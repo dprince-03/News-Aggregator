@@ -1,54 +1,90 @@
 import api from '../utils/api';
 
+// The backend wraps payloads as { success, message, data: {...} } - unwrap
+// `data` into the top-level shape the rest of the app expects (data.user,
+// data.token, ...) in one place instead of at every call site.
+const unwrap = (response) => ({ ...response.data, ...response.data.data });
+
 const authService = {
   // Register new user
   async register(userData) {
     const response = await api.post('/auth/register', userData);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+    const data = unwrap(response);
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(data.user));
     }
-    return response.data;
+    return data;
   },
 
   // Login user
   async login(credentials) {
     const response = await api.post('/auth/login', credentials);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+    const data = unwrap(response);
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(data.user));
     }
-    return response.data;
+    return data;
   },
 
   // Logout user
   async logout() {
     try {
-      await api.post('/auth/logout');
+      await api.post('/auth/logout', { refreshToken: localStorage.getItem('refreshToken') });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
     }
+  },
+
+  // Exchange the stored refresh token for a new access token
+  async refreshAccessToken() {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await api.post('/auth/refresh-token', { refreshToken });
+    const data = unwrap(response);
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    return data;
+  },
+
+  // Complete an OAuth redirect (Google/Facebook/Twitter): the backend
+  // issues tokens and sends the browser to /auth/success?token=...&refreshToken=...
+  // - store them, then fetch the profile they belong to.
+  async completeOAuthLogin(token, refreshToken) {
+    localStorage.setItem('token', token);
+    localStorage.setItem('refreshToken', refreshToken);
+    const data = await this.getProfile();
+    return data;
   },
 
   // Get current user profile
   async getProfile() {
     const response = await api.get('/auth/me');
-    if (response.data.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+    const data = unwrap(response);
+    if (data.user) {
+      localStorage.setItem('user', JSON.stringify(data.user));
     }
-    return response.data;
+    return data;
   },
 
   // Update user profile
   async updateProfile(userData) {
     const response = await api.put('/auth/profile', userData);
-    if (response.data.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+    const data = unwrap(response);
+    if (data.user) {
+      localStorage.setItem('user', JSON.stringify(data.user));
     }
-    return response.data;
+    return data;
   },
 
   // Change password
@@ -59,14 +95,14 @@ const authService = {
 
   // Forgot password
   async forgotPassword(email) {
-    const response = await api.post('/auth/forget-password', { email });
+    const response = await api.post('/auth/forgot-password', { email });
     return response.data;
   },
 
   // Reset password
   async resetPassword(resetData) {
     const response = await api.post('/auth/reset-password', resetData);
-    return response.data;
+    return unwrap(response);
   },
 
   // Get current user from localStorage

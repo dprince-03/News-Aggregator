@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import authService from '../services/authService';
 
 const AuthContext = createContext(null);
@@ -56,6 +57,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Complete an OAuth redirect (see authService.completeOAuthLogin)
+  const loginWithOAuthTokens = async (token, refreshToken) => {
+    try {
+      const data = await authService.completeOAuthLogin(token, refreshToken);
+      setUser(data.user);
+      setIsAuthenticated(true);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
   // Logout
   const logout = async () => {
     try {
@@ -96,10 +109,15 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     register,
     login,
+    loginWithOAuthTokens,
     logout,
     updateProfile,
     refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+AuthProvider.propTypes = {
+  children: PropTypes.node.isRequired,
 };

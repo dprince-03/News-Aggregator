@@ -29,20 +29,6 @@ export const truncateText = (text, maxLength = 100) => {
   return text.substring(0, maxLength).trim() + '...';
 };
 
-// Get category color
-export const getCategoryColor = (category) => {
-  const colors = {
-    business: 'badge-primary',
-    technology: 'badge-secondary',
-    sports: 'badge-success',
-    entertainment: 'badge-danger',
-    health: 'badge-primary',
-    science: 'badge-secondary',
-    general: 'badge-secondary',
-  };
-  return colors[category?.toLowerCase()] || 'badge-secondary';
-};
-
 // Validate email
 export const isValidEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

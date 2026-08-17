@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5080/api';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5080/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -24,16 +24,43 @@ api.interceptors.request.use(
   }
 );
 
+const clearSessionAndRedirect = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+};
+
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
     if (error.response) {
-      // Handle 401 Unauthorized
-      if (error.response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+      // On a 401, try one silent refresh-token exchange before giving up -
+      // avoids logging the user out just because the access token expired
+      // mid-session. Skipped for the auth endpoints themselves so a bad
+      // login/refresh-token attempt doesn't recurse.
+      const isAuthRoute = originalRequest?.url?.includes('/auth/');
+      if (error.response.status === 401 && !originalRequest._retry && !isAuthRoute) {
+        originalRequest._retry = true;
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        if (refreshToken) {
+          try {
+            const { data } = await axios.post(`${API_URL}/auth/refresh-token`, { refreshToken });
+            localStorage.setItem('token', data.data.token);
+            localStorage.setItem('refreshToken', data.data.refreshToken);
+            originalRequest.headers.Authorization = `Bearer ${data.data.token}`;
+            return api(originalRequest);
+          } catch (refreshError) {
+            clearSessionAndRedirect();
+            return Promise.reject(refreshError);
+          }
+        }
+
+        clearSessionAndRedirect();
       }
 
       // Extract error message
