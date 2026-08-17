@@ -1,0 +1,91 @@
+# Production stack: mysql + server (API) + client (nginx serving the built SPA,
+# reverse-proxying /api to the server). Project name "newhub" so containers/
+# images/volumes are all prefixed newhub-* instead of the parent directory name.
+#
+# Usage:
+#   cp infra/docker/.env.example infra/docker/.env   # compose-level vars (DB creds, ports)
+#   cp server/.env.example server/.env               # app secrets (JWT, OAuth, news API keys)
+#   docker compose -f infra/docker/docker-compose.yml up --build -d
+#
+# server/.env is loaded into the server container via env_file for app
+# secrets (JWT/session/OAuth/news API keys); DB_* is deliberately overridden
+# below from infra/docker/.env instead, so the server always talks to *this*
+# stack's mysql container with the credentials it was actually provisioned
+# with, regardless of whatever DB_* happens to be sitting in server/.env.
+
+name: newhub
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: newhub-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-news_aggregator}
+      MYSQL_USER: ${DB_USER:?set DB_USER in infra/docker/.env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in infra/docker/.env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in infra/docker/.env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../../server/src/database/news_aggregator.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    # Bound to loopback only - lets you run the test suite / a DB client
+    # against this stack's database from the host without exposing it on
+    # the network. Remove entirely for a deployment where nothing but the
+    # server container should ever reach it.
+    ports:
+      - "127.0.0.1:${DB_HOST_PORT:-3307}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [backend]
+
+  server:
+    build:
+      context: ../../server
+      dockerfile: ../infra/docker/server.Dockerfile
+    container_name: newhub-server
+    restart: unless-stopped
+    env_file:
+      - ../../server/.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-news_aggregator}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ../../server/logs:/app/logs
+    networks: [backend, frontend]
+
+  client:
+    build:
+      context: ../../client
+      dockerfile: ../infra/docker/client.Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    container_name: newhub-client
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - server
+    networks: [frontend]
+
+volumes:
+  mysql_data:
+    name: newhub_mysql_data
+
+networks:
+  backend:
+    name: newhub_backend
+  frontend:
+    name: newhub_frontend
