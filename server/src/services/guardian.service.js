@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { ApiLog } = require('../models/apiLog.models');
+const ApiLog = require('../models/apiLog.models');
 const logger = require("../utils/logger.utils");
 
 const GUARDIAN_API_KEY = process.env.GUARDIAN_API_KEY;

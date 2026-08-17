@@ -5,26 +5,17 @@ require('dotenv').config();
  * All external API keys are managed here
 */
 const apiKeys = {
-    // GNews API Configuration
+    // GNews API Configuration (the only "headlines" news source this app
+    // integrates - a legacy NewsAPI.org integration was removed since it
+    // was dead code, never wired into the aggregator)
     gnewsApi: {
-        key: process.env.GNEWSAPIKEY || '',
+        key: process.env.GNEWSAPI_KEY || '',
         baseUrl: 'https://gnews.io/api/v4',
         rateLimit: {
             requests: 100,
             period: 'day',
         },
-        enabled: !!process.env.GNEWSAPIKEY,
-    },
-
-    // NewsAPI Configuration
-    newsApi: {
-        key: process.env.NEWSAPI_KEY || '',
-        baseUrl: 'https://newsapi.org/v2',
-        rateLimit: {
-            requests: 100,
-            period: 'day', // 100 requests per day (free tier)
-        },
-        enabled: !!process.env.NEWSAPI_KEY,
+        enabled: !!process.env.GNEWSAPI_KEY,
     },
 
     // The Guardian API Configuration
@@ -71,28 +62,20 @@ const validateApiKeys = () => {
     const warnings = [];
     const errors = [];
 
-    // Check GNewsAPI
     if (!apiKeys.gnewsApi.enabled) {
-        warnings.push('GNewsAPI key not configured - GNewsAPI features will be disabled');
+        warnings.push('GNews API key not configured - GNews features will be disabled');
     }
 
-    // Check NewsAPI
-    if (!apiKeys.newsApi.enabled) {
-        warnings.push('NewsAPI key not configured - NewsAPI features will be disabled');
-    }
-
-    // Check Guardian
     if (!apiKeys.guardian.enabled) {
         warnings.push('Guardian API key not configured - Guardian features will be disabled');
     }
 
-    // Check NYT
     if (!apiKeys.nyt.enabled) {
         warnings.push('NYT API key not configured - NYT features will be disabled');
     }
 
     // Check if at least one news API is enabled
-    const hasAnyNewsApi = apiKeys.gnewsApi.enabled || apiKeys.newsApi.enabled || apiKeys.guardian.enabled || apiKeys.nyt.enabled;
+    const hasAnyNewsApi = apiKeys.gnewsApi.enabled || apiKeys.guardian.enabled || apiKeys.nyt.enabled;
 
     if (!hasAnyNewsApi) {
         errors.push('No news API keys configured - Application requires at least one news source');
@@ -112,8 +95,7 @@ const validateApiKeys = () => {
 const getEnabledSources = () => {
     const sources = [];
 
-    if (apiKeys.gnewsApi.enabled) sources.push('GNewsAPI');
-    if (apiKeys.newsApi.enabled) sources.push('NewsAPI');
+    if (apiKeys.gnewsApi.enabled) sources.push('GNews');
     if (apiKeys.guardian.enabled) sources.push('The Guardian');
     if (apiKeys.nyt.enabled) sources.push('New York Times');
 
@@ -125,8 +107,7 @@ const getEnabledSources = () => {
 */
 const isApiEnabled = (apiName) => {
     const apiMap = {
-        gnewsapi: apiKeys.gnewsApi.enabled,
-        newsapi: apiKeys.newsApi.enabled,
+        gnews: apiKeys.gnewsApi.enabled,
         guardian: apiKeys.guardian.enabled,
         nyt: apiKeys.nyt.enabled,
         email: apiKeys.email.enabled,
@@ -140,7 +121,7 @@ const isApiEnabled = (apiName) => {
 */
 const getApiConfig = (apiName) => {
     const apiMap = {
-        newsapi: apiKeys.newsApi,
+        gnews: apiKeys.gnewsApi,
         guardian: apiKeys.guardian,
         nyt: apiKeys.nyt,
         email: apiKeys.email,
@@ -155,10 +136,9 @@ const getApiConfig = (apiName) => {
 const displayApiKeysStatus = () => {
     console.log(' API Keys Configuration:');
     console.log('─'.repeat(60));
-    
+
     const sources = [
-        { name: 'GNewsAPI', enabled: apiKeys.gnewsApi.enabled },
-        { name: 'NewsAPI', enabled: apiKeys.newsApi.enabled },
+        { name: 'GNews', enabled: apiKeys.gnewsApi.enabled },
         { name: 'The Guardian', enabled: apiKeys.guardian.enabled },
         { name: 'New York Times', enabled: apiKeys.nyt.enabled },
         { name: 'Email Service', enabled: apiKeys.email.enabled },

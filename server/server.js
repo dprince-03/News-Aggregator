@@ -7,9 +7,13 @@ const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const passport = require('passport');
-const rateLimit = require('express-rate-limit');
 const session = require('express-session');
 
+const corsConfig = require('./src/config/cors.config');
+const helmetConfig = require('./src/config/helmet.config');
+const sessionConfig = require('./src/config/session.config');
+const validateEnvironmentSecrets = require('./src/utils/validateSecrets.utils');
+const { apiLimiter, authLimiter } = require('./src/middleware/rateLimiters.middleware');
 const { testConnection, closeConnection } = require('./src/config/db.config');
 const { notFound, errorHandler } = require('./src/middleware/errorHandler.middleware');
 const { startArticleFetchJob } = require('./src/jobs/fetchArticles.job');
@@ -24,115 +28,16 @@ const { setupSwagger } = require('./src/config/swagger.config');
 const app = express();
 const PORT = process.env.PORT || 5080
 
-app.set('trust-proxy', 1); // trust first proxy if behind a proxy like Nginx
-
-// ========================
-// SECRET VALIDATION
-// ========================
-/**
- * Validate required environment secrets on startup
- * Prevents server from starting with missing/invalid secrets
-*/
-const validateEnvironmentSecrets = () => {
-    console.log('-- Validating environment secrets... \n');
-    
-    const requiredSecrets = [
-        'JWT_SECRET',
-        'JWT_REFRESH_SECRET',
-        'SESSION_SECRET'
-    ];
-
-    const missingSecrets = [];
-    const weakSecrets =[];
-
-    requiredSecrets.forEach(key => {
-        const value = process.env[key];
-
-        if (!value) {
-            missingSecrets.push(key);
-        } else if (value.length < 32 || value.includes('your_') || value.includes('change_this') || value.includes('placeholder')) {
-            weakSecrets.push(key);
-        }
-    });
-
-    if (missingSecrets.length > 0) {
-        console.error('-- Missing required secrets:');
-        missingSecrets.forEach(key => console.error(`   • ${key}`));
-        console.error('\n-- To fix this, run:');
-        console.error('   node server/src/utils/secrets.utils.js generate\n');
-        process.exit(1);
-    }
-
-    if (weakSecrets.length > 0) {
-        console.warn('--  Weak secrets detected (use production-grade secrets):');
-        weakSecrets.forEach(key => console.warn(`   • ${key}`));
-        console.warn('\n-- To regenerate, run:');
-        console.warn('   node server/src/utils/secrets.utils.js force\n');
-        
-        if (process.env.NODE_ENV === 'production') {
-            console.error('-- Cannot start in production with weak secrets!\n');
-            process.exit(1);
-        }
-    }
-
-    console.log('All required secrets are valid\n');
-};
+// Express's setting key is "trust proxy" (space) - "trust-proxy" (hyphen)
+// silently sets an unused custom setting instead, leaving req.ip and every
+// IP-keyed rate limiter looking at nginx's own container IP for every
+// request instead of the real client. Verified live: app.get('trust proxy')
+// returned false under the old key despite this line's intent.
+app.set('trust proxy', 1); // trust first proxy if behind a proxy like Nginx
 
 // ========================
 // MIDDLEWARES
 // ========================
-const corsConfig = {
-    origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['http://localhost:5000', 'http://localhost:5080'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials: true,
-    optionsSuccessStatus: 200
-};
-
-const limiter = rateLimit({
-    windowMs: 15 + 60 * 1000, // 15 minutes
-    max: 100,
-    message: "Too many requests from this IP, please try again after 15 minutes",
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const helmetConfig = {
-	contentSecurityPolicy: {
-		directives: {
-			defaultSrc: ["'self'"],
-			styleSrc: ["'self'", "https:", "'unsafe-inline'"],
-			scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
-			imgSrc: ["'self'", "data:", "https:"],
-			connectSrc: ["'self'", "https:"],
-			fontSrc: ["'self'", "https:", "data:"],
-			objectSrc: ["'none'"],
-			upgradeInsecureRequests: [],
-		},
-	},
-};
-
-const sessionConfig = {
-	secret: process.env.SESSION_SECRET || "your_session_secret",
-	resave: false,
-	saveUninitialized: false,
-	cookie: {
-		secure: process.env.NODE_ENV === "production",
-		httpOnly: true,
-		maxAge: 24 * 60 * 60 * 1000, // 24 hours
-	},
-};
-
-//Temporary debug middleware
-if (process.env.NODE_ENV !== "production") {
-	app.use((req, res, next) => {
-		console.log(`${req.method} ${req.path}`);
-		console.log("Body:", req.body);
-		console.log("Content-Type:", req.headers["content-type"]);
-		next();
-	});
-} // remove later
-
 app.use(helmet(helmetConfig));
 app.use(cors(corsConfig));
 app.use(express.json({ limit: '10mb' }));
@@ -179,12 +84,8 @@ app.get('/', (req, res) => {
         version: '1.0.0',
         documentation: {
             swagger: `http://localhost:${PORT}/api/docs`,
-            // postman: 'https://documenter.getpostman.com/view/your-collection',
         },
-        support: {
-            email: 'support@newsaggregator.com', // replace with actual support email
-            github: 'https://github.com/yourusername/news-aggregator-api', // replace with actual repo
-        },
+        repository: 'https://github.com/dprince-03/News-Aggregator-API-',
         endpoints: {
             api: '/api',
             health: '/api/health',
@@ -193,7 +94,7 @@ app.get('/', (req, res) => {
     });
 });
 
-app.use('/api', limiter);
+app.use('/api', apiLimiter);
 
 // Root endpoint
 app.get('/api', (req, res) => {
@@ -208,12 +109,12 @@ app.get('/api', (req, res) => {
                 register: { method: 'POST', path: '/api/auth/register', description: 'Register a new user' },
                 login: { method: 'POST', path: '/api/auth/login', description: 'Login user' },
                 logout: { method: 'POST', path: '/api/auth/logout', description: 'Logout user', auth: true },
+                refreshToken: { method: 'POST', path: '/api/auth/refresh-token', description: 'Exchange a refresh token for a new access token' },
                 profile: { method: 'GET', path: '/api/auth/me', description: 'Get current user profile', auth: true },
                 updateProfile: { method: 'PUT', path: '/api/auth/profile', description: 'Update user profile', auth: true },
                 changePassword: { method: 'PUT', path: '/api/auth/change-password', description: 'Change password', auth: true },
                 forgotPassword: { method: 'POST', path: '/api/auth/forgot-password', description: 'Request password reset' },
                 resetPassword: { method: 'POST', path: '/api/auth/reset-password', description: 'Reset password with token' },
-                refreshToken: { method: 'POST', path: '/api/auth/refresh-token', description: 'Refresh JWT token' },
             },
             oauth: {
                 google: { method: 'GET', path: '/api/auth/google', description: 'Login with Google' },
@@ -249,7 +150,7 @@ app.get('/api', (req, res) => {
         },
         notes: {
             authentication: 'Endpoints marked with "auth: true" require JWT Bearer token',
-            rateLimit: '100 requests per 15 minutes per IP',
+            rateLimit: '100 requests per 15 minutes per IP (20 per 15 minutes for /api/auth)',
             pagination: 'Default: page=1, limit=20',
         },
     });
@@ -269,7 +170,7 @@ app.get('/api/health', (req, res) => {
             database: 'connected',
             cache: 'active',
             externalAPIs: {
-                newsapi: !!process.env.NEWSAPI_KEY,
+                gnews: !!process.env.GNEWSAPI_KEY,
                 guardian: !!process.env.GUARDIAN_API_KEY,
                 nyt: !!process.env.NYT_API_KEY,
             },
@@ -277,7 +178,7 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/articles', articleRouter);
 app.use('/api/preferences', preferenceRouter);
@@ -291,7 +192,7 @@ app.use(errorHandler);
 // ========================
 // SERVER SETUP
 // ========================
-const start_server = async () => {    
+const start_server = async () => {
     try {
         console.log('');
         console.log('='.repeat(50));
@@ -304,9 +205,9 @@ const start_server = async () => {
 
         // Display API keys status
         displayApiKeysStatus();
-        
+
         // Initialize database
-        console.log('-- Connecting to database...\n');        
+        console.log('-- Connecting to database...\n');
         const dbconnect = await testConnection();
 
         if (!dbconnect) {
@@ -317,8 +218,8 @@ const start_server = async () => {
 
         // Setup Swagger documentation
         setupSwagger(app);
-        
-        // Start cron job 
+
+        // Start cron job
         if (process.env.ENABLE_CRON ==='true') {
             console.log('-- Starting automated article fetching...\n');
             startArticleFetchJob();
@@ -327,7 +228,7 @@ const start_server = async () => {
             console.log('   Set ENABLE_CRON=true in .env to enable\n');
         }
 
-        // Start HTTP Server 
+        // Start HTTP Server
         const server = app.listen(PORT, () => {
             console.log('');
             console.log('='.repeat(50));
@@ -367,7 +268,7 @@ const start_server = async () => {
 
             server.close(async () => {
                 console.log('HTTP server closed');
-                
+
                 // Close database connections
                 console.log('Closing database connections...');
                 await closeConnection();
@@ -414,7 +315,7 @@ const start_server = async () => {
             logger.error('Unhandled Rejection', { reason, promise });
             shutdown('UNHANDLED_REJECTION');
         });
-        
+
     } catch (error) {
         console.error('');
         console.error('='.repeat(60));
@@ -425,9 +326,9 @@ const start_server = async () => {
         console.error('Stack:', error.stack);
         console.error('');
 
-        logger.error('Server startup failed', { 
-            error: error.message, 
-            stack: error.stack 
+        logger.error('Server startup failed', {
+            error: error.message,
+            stack: error.stack
         });
 
         process.exit(1);

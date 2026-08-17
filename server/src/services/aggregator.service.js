@@ -1,16 +1,42 @@
+const NodeCache = require('node-cache');
+const sanitizeHtml = require('sanitize-html');
+
 const gnewsService = require('./gnews.service');
 const guardianService = require('./guardian.service');
 const nytService = require('./nyt.service');
-const { Article } = require('../models/article.models');
+const Article = require('../models/article.models');
 const { removeDuplicates } = require('../utils/helper.utils');
 const logger = require('../utils/logger.utils');
+
+// Aggregated fetches are cached briefly so repeated requests (or a fast
+// retry after a partial source failure) don't burn free-tier rate limits on
+// GNews/Guardian/NYT for data that's a few minutes old anyway.
+const aggregationCache = new NodeCache({ stdTTL: 15 * 60, checkperiod: 60 });
+
+// External article fields are rendered as plain text on the frontend, but
+// the APIs are free to send HTML - strip it at ingestion so nothing
+// malicious from an upstream source ever reaches the client unescaped.
+const sanitizeArticleContent = (article) => ({
+    ...article,
+    title: article.title ? sanitizeHtml(article.title, { allowedTags: [], allowedAttributes: {} }) : article.title,
+    description: article.description ? sanitizeHtml(article.description, { allowedTags: [], allowedAttributes: {} }) : article.description,
+    content: article.content ? sanitizeHtml(article.content, { allowedTags: [], allowedAttributes: {} }) : article.content,
+});
 
 /**
  * Fetch articles from all sources
 */
 const fetchFromAllSources = async (options = {}) => {
     const { category, limit = 10 } = options;
-    
+
+    const cacheKey = `aggregate:${category || 'general'}:${limit}`;
+    const cached = aggregationCache.get(cacheKey);
+    if (cached) {
+        console.log(` Using cached results for "${cacheKey}" (avoids re-hitting rate-limited APIs)`);
+        logger.info('Serving article aggregation from cache', { cacheKey });
+        return cached;
+    }
+
     console.log(' Fetching articles from all sources...');
     logger.info('Starting article aggregation', { category, limit });
 
@@ -19,7 +45,7 @@ const fetchFromAllSources = async (options = {}) => {
     const sourceNames = [];
     
     // 1. GNews API (formerly NewsAPI)
-    if (process.env.NEWSAPI_KEY) {
+    if (process.env.GNEWSAPI_KEY) {
         requests.push(
             gnewsService.fetchTopHeadlines({ 
                 category: category || 'general',
@@ -87,28 +113,11 @@ const fetchFromAllSources = async (options = {}) => {
             fetchStats.failed++;
         }
     });
-        
-    // const results = await Promise.allSettled([
-    //     newsApiService.fetchTopHeadlines({ category, pageSize: limit }),
-    //     guardianService.fetchArticles({ section: category, pageSize: limit }),
-    //     nytService.fetchTopStories(category || 'home'),
-    // ]);
-    
-    // const allArticles = [];
-    
-    // results.forEach((result, index) => {
-    //     const sources = ['NewsAPI', 'The Guardian', 'NYT'];
-    //     if (result.status === 'fulfilled') {
-    //         console.log(` ${sources[index]}: ${result.value.articles.length} articles`);
-    //         allArticles.push(...result.value.articles);
-    //     } else {
-    //         console.error(` ${sources[index]}: ${result.reason.message}`);
-    //     }
-    // });
-    
-    // Remove duplicates based on URL
-    const uniqueArticles = removeDuplicates(allArticles, 'url');
-    
+
+    // Remove duplicates based on URL, then sanitize before anything downstream
+    // (DB storage, API responses) ever touches externally-sourced HTML.
+    const uniqueArticles = removeDuplicates(allArticles, 'url').map(sanitizeArticleContent);
+
    console.log(`\n Aggregation Summary:`);
     console.log(`   Total fetched: ${allArticles.length}`);
     console.log(`   Unique articles: ${uniqueArticles.length}`);
@@ -123,6 +132,12 @@ const fetchFromAllSources = async (options = {}) => {
         sourcesTotal: sourceNames.length,
     });
     
+    // Don't cache an empty result - a transient failure (e.g. every source
+    // timing out) shouldn't block a legitimate retry for the full TTL.
+    if (uniqueArticles.length > 0) {
+        aggregationCache.set(cacheKey, uniqueArticles);
+    }
+
     return uniqueArticles;
 };
 
@@ -311,7 +326,7 @@ const testAllApis = async () => {
     };
     
     // Test GNews
-    if (process.env.NEWSAPI_KEY) {
+    if (process.env.GNEWSAPI_KEY) {
         try {
             await gnewsService.fetchTopHeadlines({ max: 1 });
             results.gnews.status = 'working';

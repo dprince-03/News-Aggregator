@@ -1,8 +1,8 @@
 const axios = require('axios');
-const { ApiLog } = require('../models/apiLog.models');
+const ApiLog = require('../models/apiLog.models');
 const logger = require('../utils/logger.utils');
 
-const GNEEWS_API_KEY = process.env.GNEWS_API_KEY;
+const GNEWS_API_KEY = process.env.GNEWSAPI_KEY;
 const GNEWS_API_BASE_URL = 'https://gnews.io/api/v4';
 
 /**
@@ -24,7 +24,7 @@ const fetchTopHeadlines = async (options = {}) => {
 
     try {
         const params = {
-            token: GNEEWS_API_KEY,
+            token: GNEWS_API_KEY,
             category,
             country,
             lang,
