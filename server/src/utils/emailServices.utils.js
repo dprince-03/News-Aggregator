@@ -39,7 +39,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
         };
     }
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password=${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     const mailOptions = {
         from: `"${process.env.APP_NAME || 'News Aggregator'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
