@@ -95,6 +95,25 @@ SavedArticle.getSavedArticlesForUser = async function (userId, options = {}) {
 	});
 };
 
+// Bulk-check which of a set of article IDs are saved by a user - one query,
+// used to attach `is_saved` to public article list endpoints without N+1s.
+SavedArticle.getSavedArticleIds = async function (userId, articleIds) {
+	if (!userId || !articleIds || articleIds.length === 0) {
+		return new Set();
+	}
+
+	const saved = await SavedArticle.findAll({
+		where: {
+			user_id: userId,
+			article_id: articleIds,
+		},
+		attributes: ["article_id"],
+		raw: true,
+	});
+
+	return new Set(saved.map((row) => row.article_id));
+};
+
 // Check if article is saved by user
 SavedArticle.isArticleSaved = async function (userId, articleId) {
     const saved = await SavedArticle.findOne({

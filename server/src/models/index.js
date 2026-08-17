@@ -9,6 +9,7 @@ const SavedArticle = require("./savedArticle.models");
 const NewsSource = require("./newsSource.models");
 const Category = require("./category.models");
 const ApiLog = require("./apiLog.models");
+const RefreshToken = require("./refreshToken.models");
 
 // Initialize models
 const models = {
@@ -19,6 +20,7 @@ const models = {
   NewsSource,
   Category,
   ApiLog,
+  RefreshToken,
 };
 
 // Define associations
@@ -59,6 +61,17 @@ Article.hasMany(SavedArticle, {
 SavedArticle.belongsTo(Article, {
   foreignKey: 'article_id',
   as: 'article'
+});
+
+// User - RefreshToken association (One-to-Many)
+User.hasMany(RefreshToken, {
+  foreignKey: 'user_id',
+  as: 'refreshTokens'
+});
+
+RefreshToken.belongsTo(User, {
+  foreignKey: 'user_id',
+  as: 'user'
 });
 
 // Export models and sequelize

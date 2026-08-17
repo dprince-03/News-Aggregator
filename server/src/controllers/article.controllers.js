@@ -3,6 +3,25 @@ const { Op } = require('sequelize');
 const { asyncHandler } = require('../middleware/errorHandler.middleware');
 const { formatPaginationResponse, paginate, sanitizeSearchQuery } = require('../utils/helper.utils');
 
+// Attaches `is_saved` to each article for the current user in one bulk
+// query (via req.user, set by the optionalAuth middleware) - a no-op array
+// map when nobody is logged in, so it's safe on fully public routes too.
+const withSavedFlags = async (articles, userId) => {
+    if (!userId || articles.length === 0) {
+        return articles.map((article) => ({ ...(article.toJSON ? article.toJSON() : article), is_saved: false }));
+    }
+
+    const savedIds = await SavedArticle.getSavedArticleIds(
+        userId,
+        articles.map((article) => article.id),
+    );
+
+    return articles.map((article) => ({
+        ...(article.toJSON ? article.toJSON() : article),
+        is_saved: savedIds.has(article.id),
+    }));
+};
+
 /**
  * @desc    Get all articles
  * @route   GET /api/articles
@@ -24,9 +43,10 @@ const getAllArticles = asyncHandler(async (req, res) => {
         offset,
         order: [['published_at', 'DESC']],
     });
-    
-    const response = formatPaginationResponse(rows, page, limitNum, count);
-    
+
+    const articles = await withSavedFlags(rows, req.user?.id);
+    const response = formatPaginationResponse(articles, page, limitNum, count);
+
     res.json({
         success: true,
         message: 'Articles retrieved successfully',
@@ -43,17 +63,19 @@ const getArticleById = asyncHandler(async (req, res) => {
     const { id } = req.params;
     
     const article = await Article.findByPk(id);
-    
+
     if (!article) {
         return res.status(404).json({
             success: false,
             message: 'Article not found',
         });
     }
-    
+
+    const [articleWithSaved] = await withSavedFlags([article], req.user?.id);
+
     res.json({
         success: true,
-        data: article,
+        data: articleWithSaved,
     });
 });
 
@@ -79,9 +101,10 @@ const searchArticles = asyncHandler(async (req, res) => {
         limit: limitNum,
         offset,
     });
-    
-    const response = formatPaginationResponse(rows, page, limitNum, count);
-    
+
+    const articles = await withSavedFlags(rows, req.user?.id);
+    const response = formatPaginationResponse(articles, page, limitNum, count);
+
     res.json({
         success: true,
         message: 'Search results retrieved successfully',
@@ -120,9 +143,10 @@ const filterArticles = asyncHandler(async (req, res) => {
         limit: limitNum,
         offset,
     });
-    
-    const response = formatPaginationResponse(rows, page, limitNum, count);
-    
+
+    const articles = await withSavedFlags(rows, req.user?.id);
+    const response = formatPaginationResponse(articles, page, limitNum, count);
+
     res.json({
         success: true,
         message: 'Filtered articles retrieved successfully',

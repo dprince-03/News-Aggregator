@@ -1,9 +1,17 @@
 require("dotenv").config();
 const { Sequelize } = require("sequelize");
 
+// Tests run against a separate database so that destructive test helpers
+// (sequelize.sync({ force: true }) drops and recreates every table) can
+// never touch dev/production data. Override with TEST_DB_NAME if needed.
+const dbName =
+	process.env.NODE_ENV === "test"
+		? process.env.TEST_DB_NAME || `${process.env.DB_NAME || "news_aggregator"}_test`
+		: process.env.DB_NAME || "news_aggregator";
+
 // Create Sequelize instance
 const sequelize = new Sequelize(
-	process.env.DB_NAME || "news_aggregator",
+	dbName,
 	process.env.DB_USER || "root",
 	process.env.DB_PASSWORD || "",
 	{

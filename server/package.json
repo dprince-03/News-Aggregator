@@ -4,7 +4,7 @@
   "description": "a RESTful API for a news aggregator service that fetches articles from various sources and provides endpoints for a frontend application to consume.",
   "main": "server.js",
   "scripts": {
-    "test": "cross-env NODE_ENV=test jest --detectOpenHandles --forceExit",
+    "test": "cross-env NODE_ENV=test jest --runInBand --forceExit",
     "test:watch": "cross-env NODE_ENV=test jest --watch",
     "test:coverage": "cross-env NODE_ENV=test jest --coverage",
     "test:auth": "cross-env NODE_ENV=test jest tests/auth.test.js",
@@ -21,6 +21,7 @@
     "secrets:prod": "node src/utils/secrets.utils.js env production",
     "secrets:regen": "node src/utils/secrets.utils.js force",
     "stats": "node scripts/view-api-stats.js",
+    "admin:promote": "node scripts/make-admin.js",
     "stats:7": "node scripts/view-api-stats.js 7",
     "stats:30": "node scripts/view-api-stats.js 30"
   },
@@ -62,7 +63,7 @@
     "mysql2": "^3.15.2",
     "node-cache": "^5.1.2",
     "node-cron": "^4.2.1",
-    "nodemailer": "^7.0.9",
+    "nodemailer": "^9.0.5",
     "passport": "^0.7.0",
     "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
@@ -70,6 +71,7 @@
     "passport-local": "^1.0.0",
     "passport-oauth2": "^1.8.0",
     "passport-twitter": "^0.1.5",
+    "sanitize-html": "2.17.1",
     "sequelize": "^6.37.7",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
@@ -79,7 +81,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "cross-env": "^10.1.0",
-    "jest": "^30.2.0",
+    "jest": "^30.4.2",
     "nodemon": "^3.1.10",
     "sequelize-cli": "^6.6.3",
     "supertest": "^7.1.4"

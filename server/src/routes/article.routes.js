@@ -9,21 +9,21 @@ const articleRouter = express.Router();
  * @desc    Get all articles
  * @access  Public
 */
-articleRouter.get('/', getAllArticles);
+articleRouter.get('/', optionalAuth, getAllArticles);
 
 /**
  * @route   GET /api/articles/search
  * @desc    Search articles
  * @access  Public
 */
-articleRouter.get('/search', searchArticles);
+articleRouter.get('/search', optionalAuth, searchArticles);
 
 /**
  * @route   GET /api/articles/filter
  * @desc    Filter articles
  * @access  Public
 */
-articleRouter.get('/filter', filterArticles);
+articleRouter.get('/filter', optionalAuth, filterArticles);
 
 /**
  * @route   GET /api/articles/personalized
@@ -44,7 +44,7 @@ articleRouter.get('/saved', authenticate, getSavedArticles);
  * @desc    Get single article
  * @access  Public
 */
-articleRouter.get('/:id', getArticleById);
+articleRouter.get('/:id', optionalAuth, getArticleById);
 
 /**
  * @route   POST /api/articles/:id/save

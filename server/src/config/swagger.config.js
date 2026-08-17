@@ -1,3 +1,4 @@
+const helmet = require('helmet');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
@@ -207,8 +208,22 @@ const setupSwagger = (app) => {
         res.send(swaggerSpec);
     });
 
-    // Serve Swagger UI
-    app.use('/api/docs', swaggerUi.serve,swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+    // Swagger UI needs inline styles/scripts to render itself. Scope a
+    // relaxed CSP to just this path instead of loosening it for the whole
+    // API (see src/config/helmet.config.js for the strict default).
+    app.use(
+        '/api/docs',
+        helmet.contentSecurityPolicy({
+            directives: {
+                defaultSrc: ["'self'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", "data:"],
+            },
+        }),
+        swaggerUi.serve,
+        swaggerUi.setup(swaggerSpec, swaggerUiOptions)
+    );
 
     console.log(' Swagger documentation available at:');
     console.log(`   http://localhost:${process.env.PORT || 5080}/api/docs`);

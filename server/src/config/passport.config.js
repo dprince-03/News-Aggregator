@@ -7,7 +7,17 @@ const FacebookStrategy = require("passport-facebook").Strategy;
 const TwitterStrategy = require("passport-twitter").Strategy;
 
 const User = require("../models/user.models");
+const crypto = require("crypto");
+
 const authConfig = require("./auth.config");
+
+// OAuth-created accounts never log in via the local (password) strategy,
+// but the User model still requires a password hash - Math.random() is not
+// cryptographically secure and its 8-char base36 output is small enough to
+// be realistically brute-forced against a leaked hash (or even online,
+// given no additional protection beyond the standard auth rate limit).
+// A long crypto-random value here means that path stays theoretical.
+const generateUnusablePassword = () => crypto.randomBytes(32).toString('hex');
 
 // ============================================
 // JWT Strategy (for API authentication)
@@ -15,6 +25,10 @@ const authConfig = require("./auth.config");
 const jwtOptions = {
 	jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 	secretOrKey: authConfig.jwt.secret,
+	// Pin the accepted algorithm explicitly - every token this app issues
+	// is HS256, and jsonwebtoken's verify() will reject anything else once
+	// this is set, closing off algorithm-confusion/downgrade attacks.
+	algorithms: ['HS256'],
 };
 
 passport.use(
@@ -91,7 +105,7 @@ if (authConfig.google.clientID && authConfig.google.clientSecret) {
 						user = await User.create({
 							email: profile.emails[0].value,
 							name: profile.displayName,
-							password: Math.random().toString(36).slice(-8), // Random password
+							password: generateUnusablePassword(),
 							google_id: profile.id,
 							profile_picture: profile.photos[0]?.value,
 						});
@@ -128,7 +142,7 @@ if (authConfig.facebook.clientID && authConfig.facebook.clientSecret) {
 						user = await User.create({
 							email: profile.emails[0].value,
 							name: profile.displayName,
-							password: Math.random().toString(36).slice(-8),
+							password: generateUnusablePassword(),
 							facebook_id: profile.id,
 							profile_picture: profile.photos[0]?.value,
 						});
@@ -168,7 +182,7 @@ if (authConfig.twitter.consumerKey && authConfig.twitter.consumerSecret) {
 						user = await User.create({
 							email,
 							name: profile.displayName,
-							password: Math.random().toString(36).slice(-8),
+							password: generateUnusablePassword(),
 							twitter_id: profile.id,
 							profile_picture: profile.photos[0]?.value,
 						});

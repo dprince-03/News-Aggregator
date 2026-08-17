@@ -21,8 +21,7 @@ const errorHandler = (err, req, res, next) => {
 
     if (err.name === "SequelizeUniqueConstraintError") {
         statusCode = 409;
-        message = "Duplicate entry error";
-        const errors = err.errors[0]?.path || 'unknown';
+        const field = err.errors[0]?.path || 'unknown';
 
         return res.status(statusCode).json({
             success: false,

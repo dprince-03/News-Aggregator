@@ -49,11 +49,16 @@ const updatePreferences = asyncHandler(async (req, res) => {
 */
 const getAvailableSources = asyncHandler(async (req, res) => {
     const sources = await NewsSource.getActiveSources();
-    
+
+    // Every consumer of this list - the preferred_sources comparison,
+    // Home.jsx's source filter, Article.filterArticles' source_name match -
+    // expects a plain name string, not a NewsSource row. Sending the raw
+    // model instances crashed the Preferences page outright (React error
+    // #31, "objects are not valid as a React child").
     res.json({
         success: true,
         message: 'Available sources retrieved successfully',
-        data: sources,
+        data: sources.map((source) => source.name),
     });
 });
 
@@ -64,11 +69,13 @@ const getAvailableSources = asyncHandler(async (req, res) => {
 */
 const getAvailableCategories = asyncHandler(async (req, res) => {
     const categories = await Category.getAll();
-    
+
+    // Same reasoning as getAvailableSources above - plain name strings, not
+    // Category rows.
     res.json({
         success: true,
         message: 'Available categories retrieved successfully',
-        data: categories,
+        data: categories.map((category) => category.name),
     });
 });
 

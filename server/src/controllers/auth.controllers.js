@@ -2,7 +2,16 @@ const passport = require('passport');
 
 const User = require('../models/user.models');
 const { asyncHandler, AppError } = require('../middleware/errorHandler.middleware');
-const { generateToken, generateRefreshToken, generateResetToken, verifyResetToken } = require('../middleware/auth.middleware');
+const {
+	generateToken,
+	generateRefreshToken,
+	verifyRefreshToken,
+	persistRefreshToken,
+	revokeRefreshToken,
+	revokeAllRefreshTokens,
+	generateResetToken,
+	verifyResetToken,
+} = require('../middleware/auth.middleware');
 const emailService = require("../utils/emailServices.utils");
 
 // ============================================
@@ -19,13 +28,14 @@ const registerUser = asyncHandler( async (req, res, next) => {
     }
 
     const user = await User.create({
-        name, 
+        name,
         email,
         password,
     });
 
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
+    await persistRefreshToken(user, refreshToken);
 
     res.status(201).json({
         success: true,
@@ -44,39 +54,109 @@ const registerUser = asyncHandler( async (req, res, next) => {
 // @access  Public
 // ============================================
 const login = asyncHandler(async (req, res, next) => {
-    passport.authenticate('local', { session: false }, (err, user, info) => {
+    passport.authenticate('local', { session: false }, async (err, user, info) => {
         if (err) {
             return next(err);
         }
 
         if (!user) {
-            throw new AppError(info?.message || "Invalid credentials", 401);            
+            // This callback runs inside passport's own async flow, not
+            // inside the `login` function's call stack - asyncHandler can't
+            // catch a throw here, so it would escape Express's error
+            // handling entirely instead of becoming a clean 401 response.
+            return next(new AppError(info?.message || "Invalid credentials", 401));
         }
 
-        const token = generateToken(user);
-        const refreshToken = generateRefreshToken(user);
+        try {
+            const token = generateToken(user);
+            const refreshToken = generateRefreshToken(user);
+            await persistRefreshToken(user, refreshToken);
 
-        res.status(200).json({
-            success: true,
-            message: 'Login successful',
-            data: {
-                user: user.toJSON(),
-                token,
-                refreshToken,
-            },
-        })
+            res.status(200).json({
+                success: true,
+                message: 'Login successful',
+                data: {
+                    user: user.toJSON(),
+                    token,
+                    refreshToken,
+                },
+            });
+        } catch (error) {
+            next(error);
+        }
     })(req, res, next);
 });
 
 // ============================================
-// @desc    Logout user
+// @desc    Logout user - revokes the presented refresh token so it can no
+//          longer be used to mint new access tokens.
 // @route   POST /api/auth/logout
 // @access  Private
 // ============================================
 const logout = asyncHandler(async (req, res, next) => {
+    const { refreshToken } = req.body || {};
+
+    if (refreshToken) {
+        await revokeRefreshToken(refreshToken);
+    }
+
     res.status(200).json({
         success: true,
 		message: "Logout successful",
+    });
+});
+
+// ============================================
+// @desc    Exchange a valid, non-revoked refresh token for a new access
+//          token. Rotates the refresh token (old one is revoked, a new one
+//          issued) so a leaked refresh token has a limited window of use.
+// @route   POST /api/auth/refresh-token
+// @access  Public (requires a valid refresh token in the body)
+// ============================================
+const refreshTokenHandler = asyncHandler(async (req, res, next) => {
+    const { refreshToken } = req.body || {};
+
+    if (!refreshToken) {
+        throw new AppError('Refresh token is required', 400);
+    }
+
+    let decoded;
+    try {
+        decoded = verifyRefreshToken(refreshToken);
+    } catch (error) {
+        throw new AppError('Invalid or expired refresh token', 401);
+    }
+
+    const { RefreshToken } = require('../models');
+    const { hashToken } = require('../middleware/auth.middleware');
+
+    const stored = await RefreshToken.findOne({
+        where: { token_hash: hashToken(refreshToken), user_id: decoded.id },
+    });
+
+    if (!stored || stored.revoked_at || stored.expires_at < new Date()) {
+        throw new AppError('Refresh token has been revoked or is invalid', 401);
+    }
+
+    const user = await User.findByPk(decoded.id);
+    if (!user) {
+        throw new AppError('User not found', 404);
+    }
+
+    stored.revoked_at = new Date();
+    await stored.save();
+
+    const newToken = generateToken(user);
+    const newRefreshToken = generateRefreshToken(user);
+    await persistRefreshToken(user, newRefreshToken);
+
+    res.status(200).json({
+        success: true,
+        message: 'Token refreshed successfully',
+        data: {
+            token: newToken,
+            refreshToken: newRefreshToken,
+        },
     });
 });
 
@@ -136,7 +216,8 @@ const updateProfile = asyncHandler(async (req, res, next) => {
 });
 
 // ============================================
-// @desc    Change password
+// @desc    Change password - revokes all of the user's refresh tokens so
+//          every other logged-in session/device is forced to re-authenticate.
 // @route   PUT /api/auth/change-password
 // @access  Private
 // ============================================
@@ -156,6 +237,7 @@ const changePassword = asyncHandler(async (req, res, next) => {
     }
 
     await user.update({ password: newPassword });
+    await revokeAllRefreshTokens(user.id);
 
     res.status(200).json({
         success: true,
@@ -193,7 +275,10 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 });
 
 // ============================================
-// @desc    Reset password
+// @desc    Reset password - verifies the reset token, actually updates the
+//          user's password (previously a no-op that only minted new tokens
+//          without ever writing the new password), and revokes existing
+//          refresh tokens since the credential changed.
 // @route   POST /api/auth/reset-password
 // @access  Public
 // ============================================
@@ -213,12 +298,16 @@ const resetPassword = asyncHandler(async (req, res, next) => {
         throw new AppError("User not found", 404);
     }
 
+    await user.update({ password: newPassword });
+    await revokeAllRefreshTokens(user.id);
+
     const newToken = generateToken(user);
     const newRefreshToken = generateRefreshToken(user);
+    await persistRefreshToken(user, newRefreshToken);
 
     res.status(200).json({
         success: true,
-        message: 'Token refreshed successfully',
+        message: 'Password reset successfully',
         data: {
             token: newToken,
             refreshToken: newRefreshToken,
@@ -234,8 +323,18 @@ const resetPassword = asyncHandler(async (req, res, next) => {
 const googleCallback = asyncHandler(async (req, res, next) => {
 	const token = generateToken(req.user);
 	const refreshToken = generateRefreshToken(req.user);
+	await persistRefreshToken(req.user, refreshToken);
 
 	// Redirect to frontend with token
+	res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}&refreshToken=${refreshToken}`);
+});
+
+// Facebook OAuth Callback
+const facebookCallback = asyncHandler(async (req, res, next) => {
+	const token = generateToken(req.user);
+	const refreshToken = generateRefreshToken(req.user);
+	await persistRefreshToken(req.user, refreshToken);
+
 	res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}&refreshToken=${refreshToken}`);
 });
 
@@ -243,6 +342,7 @@ const googleCallback = asyncHandler(async (req, res, next) => {
 const twitterCallback = asyncHandler(async (req, res, next) => {
 	const token = generateToken(req.user);
 	const refreshToken = generateRefreshToken(req.user);
+	await persistRefreshToken(req.user, refreshToken);
 
 	res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}&refreshToken=${refreshToken}`);
 });
@@ -252,13 +352,13 @@ module.exports = {
 	register: registerUser,
 	login,
 	logout,
+	refreshToken: refreshTokenHandler,
 	getProfile,
 	updateProfile,
 	changePassword,
 	forgotPassword,
 	resetPassword,
-	// refreshToken,
 	googleCallback,
-	// facebookCallback,
+	facebookCallback,
 	twitterCallback,
 };

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users(
     facebook_id VARCHAR(255) UNIQUE,
     twitter_id VARCHAR(255) UNIQUE,
     profile_picture VARCHAR(512),
+    role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -63,6 +64,19 @@ CREATE TABLE IF NOT EXISTS saved_articles(
     UNIQUE KEY unique_user_article (user_id, article_id),
     INDEX idx_user_id (user_id),
     INDEX idx_article_id (article_id)
+);
+
+-- Refresh tokens (hashed, revocable) issued at login/register/OAuth
+CREATE TABLE IF NOT EXISTS refresh_tokens(
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token_hash VARCHAR(255) UNIQUE NOT NULL,
+    expires_at DATETIME NOT NULL,
+    revoked_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_token_hash (token_hash)
 );
 
 -- Create a table for API request logs

@@ -45,6 +45,12 @@ module.exports = {
 		cookie: {
 			secure: process.env.NODE_ENV === "production",
 			httpOnly: true,
+			// "lax" (not "strict"): this cookie's only job is carrying OAuth
+			// handshake state through the provider's redirect back to us -
+			// a top-level cross-site GET, which "strict" would drop the
+			// cookie on and silently break the OAuth flow. "lax" still
+			// blocks the cross-site POST/embed cases SameSite exists for.
+			sameSite: "lax",
 			maxAge: 24 * 60 * 60 * 1000, // 24 hours
 		},
 	},
