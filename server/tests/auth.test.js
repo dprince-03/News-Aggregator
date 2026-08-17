@@ -1,7 +1,7 @@
 const request = require('supertest');
 const app = require('../server'); // Assuming your express app is exported from server.js
 const setupTestDB = require('./test-setup');
-const { User } = require('../src/models');
+const { User, RefreshToken } = require('../src/models');
 
 describe('Auth Endpoints', () => {
   setupTestDB();
@@ -12,7 +12,7 @@ describe('Auth Endpoints', () => {
     const res = await request(app)
       .post('/api/auth/login')
       .send({ email: 'test@example.com', password: 'Password123!' });
-    token = res.body.accessToken;
+    token = res.body.data?.token;
   });
 
   describe('POST /api/auth/register', () => {
@@ -20,21 +20,21 @@ describe('Auth Endpoints', () => {
       const res = await request(app)
         .post('/api/auth/register')
         .send({
-          firstName: 'New',
-          lastName: 'User',
+          name: 'New User',
           email: 'newuser@example.com',
           password: 'Password123!',
         });
       expect(res.statusCode).toEqual(201);
       expect(res.body).toHaveProperty('message', 'User registered successfully');
+      expect(res.body.data).toHaveProperty('token');
+      expect(res.body.data).toHaveProperty('refreshToken');
     });
 
     it('should fail to register a user with an existing email', async () => {
       const res = await request(app)
         .post('/api/auth/register')
         .send({
-          firstName: 'Test',
-          lastName: 'User',
+          name: 'Test User',
           email: 'test@example.com',
           password: 'Password123!',
         });
@@ -45,7 +45,7 @@ describe('Auth Endpoints', () => {
     it('should fail with missing fields', async () => {
       const res = await request(app)
         .post('/api/auth/register')
-        .send({ firstName: 'Test' });
+        .send({ name: 'Test' });
       expect(res.statusCode).toEqual(400);
     });
   });
@@ -56,8 +56,8 @@ describe('Auth Endpoints', () => {
         .post('/api/auth/login')
         .send({ email: 'test@example.com', password: 'Password123!' });
       expect(res.statusCode).toEqual(200);
-      expect(res.body).toHaveProperty('accessToken');
-      expect(res.body).toHaveProperty('refreshToken');
+      expect(res.body.data).toHaveProperty('token');
+      expect(res.body.data).toHaveProperty('refreshToken');
     });
 
     it('should fail with incorrect password', async () => {
@@ -74,7 +74,7 @@ describe('Auth Endpoints', () => {
         .get('/api/auth/me')
         .set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toEqual(200);
-      expect(res.body).toHaveProperty('email', 'test@example.com');
+      expect(res.body.data.user).toHaveProperty('email', 'test@example.com');
     });
 
     it('should fail without an authentication token', async () => {
@@ -88,12 +88,12 @@ describe('Auth Endpoints', () => {
       const res = await request(app)
         .put('/api/auth/profile')
         .set('Authorization', `Bearer ${token}`)
-        .send({ firstName: 'Updated', lastName: 'Name' });
+        .send({ name: 'Updated Name' });
       expect(res.statusCode).toEqual(200);
-      expect(res.body).toHaveProperty('firstName', 'Updated');
+      expect(res.body.data.user).toHaveProperty('name', 'Updated Name');
 
       const user = await User.findOne({ where: { email: 'test@example.com' } });
-      expect(user.firstName).toBe('Updated');
+      expect(user.name).toBe('Updated Name');
     });
   });
 
@@ -103,8 +103,9 @@ describe('Auth Endpoints', () => {
         .put('/api/auth/change-password')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          oldPassword: 'Password123!',
+          currentPassword: 'Password123!',
           newPassword: 'NewPassword123!',
+          confirmPassword: 'NewPassword123!',
         });
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('message', 'Password changed successfully');
@@ -114,6 +115,110 @@ describe('Auth Endpoints', () => {
         .post('/api/auth/login')
         .send({ email: 'test@example.com', password: 'NewPassword123!' });
       expect(loginRes.statusCode).toEqual(200);
+    });
+  });
+
+  describe('POST /api/auth/refresh-token', () => {
+    it('issues a new token pair and rotates (revokes) the old refresh token', async () => {
+      const login = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'Password123!' });
+      const originalRefreshToken = login.body.data.refreshToken;
+
+      const res = await request(app)
+        .post('/api/auth/refresh-token')
+        .send({ refreshToken: originalRefreshToken });
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.data).toHaveProperty('token');
+      expect(res.body.data).toHaveProperty('refreshToken');
+      expect(res.body.data.refreshToken).not.toEqual(originalRefreshToken);
+
+      // Rotation: the original refresh token must be rejected on reuse
+      const reuse = await request(app)
+        .post('/api/auth/refresh-token')
+        .send({ refreshToken: originalRefreshToken });
+      expect(reuse.statusCode).toEqual(401);
+    });
+
+    it('rejects a refresh token that was already revoked via logout', async () => {
+      const login = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'Password123!' });
+      const { token, refreshToken } = login.body.data;
+
+      await request(app)
+        .post('/api/auth/logout')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ refreshToken });
+
+      const res = await request(app)
+        .post('/api/auth/refresh-token')
+        .send({ refreshToken });
+      expect(res.statusCode).toEqual(401);
+    });
+
+    it('rejects a missing refresh token with 400, not a 500', async () => {
+      const res = await request(app).post('/api/auth/refresh-token').send({});
+      expect(res.statusCode).toEqual(400);
+    });
+
+    it('rejects a malformed/garbage refresh token with 401, not a crash', async () => {
+      const res = await request(app)
+        .post('/api/auth/refresh-token')
+        .send({ refreshToken: 'not-a-real-jwt' });
+      expect(res.statusCode).toEqual(401);
+    });
+
+    it('issues distinct refresh tokens for rapid consecutive logins (jti collision fix)', async () => {
+      // Regression test for a real bug: two logins in the same second
+      // produced byte-identical refresh tokens (no unique claim beyond a
+      // second-precision iat), colliding on token_hash's unique DB
+      // constraint on the second insert. See CHANGELOG.md.
+      const [first, second, third] = await Promise.all([
+        request(app).post('/api/auth/login').send({ email: 'test@example.com', password: 'Password123!' }),
+        request(app).post('/api/auth/login').send({ email: 'test@example.com', password: 'Password123!' }),
+        request(app).post('/api/auth/login').send({ email: 'test@example.com', password: 'Password123!' }),
+      ]);
+
+      [first, second, third].forEach((res) => expect(res.statusCode).toEqual(200));
+
+      const tokens = [first, second, third].map((res) => res.body.data.refreshToken);
+      expect(new Set(tokens).size).toBe(3);
+    });
+  });
+
+  describe('POST /api/auth/change-password (refresh token revocation)', () => {
+    it('revokes every refresh token for the user, not just the one used to authenticate', async () => {
+      const loginA = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'Password123!' });
+      const loginB = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'Password123!' });
+
+      await request(app)
+        .put('/api/auth/change-password')
+        .set('Authorization', `Bearer ${loginA.body.data.token}`)
+        .send({
+          currentPassword: 'Password123!',
+          newPassword: 'AnotherPassword456!',
+          confirmPassword: 'AnotherPassword456!',
+        })
+        .expect(200);
+
+      // loginB's refresh token was issued before the password change and
+      // never used directly in the change-password request - it should
+      // still be revoked, because changing a password should sign out
+      // every session, not just the one that made the request.
+      const res = await request(app)
+        .post('/api/auth/refresh-token')
+        .send({ refreshToken: loginB.body.data.refreshToken });
+      expect(res.statusCode).toEqual(401);
+
+      const user = await User.findOne({ where: { email: 'test@example.com' } });
+      const remaining = await RefreshToken.count({ where: { user_id: user.id, revoked_at: null } });
+      expect(remaining).toBe(0);
     });
   });
 });

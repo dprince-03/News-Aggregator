@@ -1,7 +1,10 @@
-const newsApiService = require('../src/services/news_api.services');
-const guardianService = require('../src/services/guardian.services');
-const nytService = require('../src/services/nyt.services');
-const aggregatorService = require('../src/services/aggregator.services');
+const newsApiService = require('../src/services/gnews.service');
+const nytService = require('../src/services/nyt.service');
+const aggregatorService = require('../src/services/aggregator.service');
+
+// Jest has no test.skipIf - `maybeTest(condition, ...)` is the standard
+// (test : test.skip) pattern for conditionally running a case.
+const maybeTest = (condition, ...args) => (condition ? test : test.skip)(...args);
 
 describe('External API Services Tests', () => {
     // Skip if API keys not configured
@@ -13,9 +16,9 @@ describe('External API Services Tests', () => {
     // NEWS API SERVICE TESTS
     // ==========================================
     describe('NewsAPI Service', () => {
-        test.skipIf(!hasNewsApiKey)('Should fetch top headlines', async () => {
+        maybeTest(hasNewsApiKey, 'Should fetch top headlines', async () => {
             const result = await newsApiService.fetchTopHeadlines({
-                pageSize: 5,
+                max: 5,
             });
 
             expect(result.success).toBe(true);
@@ -29,7 +32,7 @@ describe('External API Services Tests', () => {
     // NYT SERVICE TESTS
     // ==========================================
     describe('NYT Service', () => {
-        test.skipIf(!hasNytKey)('Should fetch top stories', async () => {
+        maybeTest(hasNytKey, 'Should fetch top stories', async () => {
             const result = await nytService.fetchTopStories('home');
 
             expect(result.success).toBe(true);
@@ -43,7 +46,8 @@ describe('External API Services Tests', () => {
     // AGGREGATOR SERVICE TESTS
     // ==========================================
     describe('Aggregator Service', () => {
-        test.skipIf(!hasNewsApiKey && !hasGuardianKey && !hasNytKey)(
+        maybeTest(
+            hasNewsApiKey || hasGuardianKey || hasNytKey,
             'Should aggregate from all sources',
             async () => {
                 const articles = await aggregatorService.fetchFromAllSources({

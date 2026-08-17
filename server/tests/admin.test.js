@@ -12,13 +12,21 @@ describe('Admin API Tests', () => {
         const userResponse = await request(app)
             .post('/api/auth/register')
             .send({
-                email: 'admin@example.com',
+                email: 'admin-api-test@example.com',
                 password: 'Admin123!@#',
                 name: 'Admin User',
             });
 
         authToken = userResponse.body.data.token;
         testUser = userResponse.body.data.user;
+
+        // Registration always creates role: 'user' by design (no
+        // self-service admin escalation) - promote directly via the model,
+        // the same way an operator would with scripts/make-admin.js. The
+        // JWT strategy re-fetches the user from the DB on every request
+        // (auth.middleware.js), so the already-issued token above picks up
+        // the new role immediately - no need to re-login.
+        await User.update({ role: 'admin' }, { where: { id: testUser.id } });
 
         // Create test logs
         await ApiLog.bulkCreate([
@@ -46,7 +54,7 @@ describe('Admin API Tests', () => {
     // Cleanup
     afterAll(async () => {
         await ApiLog.destroy({ where: {}, force: true });
-        await User.destroy({ where: { email: 'admin@example.com' }, force: true });
+        await User.destroy({ where: { email: 'admin-api-test@example.com' }, force: true });
     });
 
     // ==========================================
@@ -74,6 +82,26 @@ describe('Admin API Tests', () => {
                 .expect(401);
 
             expect(response.body.success).toBe(false);
+        });
+
+        test('Should fail for an authenticated non-admin user', async () => {
+            const regularUser = await request(app)
+                .post('/api/auth/register')
+                .send({
+                    email: 'regular-api-test@example.com',
+                    password: 'Regular123!@#',
+                    name: 'Regular User',
+                });
+
+            const response = await request(app)
+                .get('/api/admin/api-logs/stats')
+                .set('Authorization', `Bearer ${regularUser.body.data.token}`)
+                .expect('Content-Type', /json/)
+                .expect(403);
+
+            expect(response.body.success).toBe(false);
+
+            await User.destroy({ where: { email: 'regular-api-test@example.com' }, force: true });
         });
     });
 

@@ -13,15 +13,16 @@ describe('Article Endpoints', () => {
     const res = await request(app)
       .post('/api/auth/login')
       .send({ email: 'test@example.com', password: 'Password123!' });
-    token = res.body.accessToken;
+    token = res.body.data?.token;
 
-    // Seed an article
+    // Seed an article - field names must match models/article.models.js
+    // (underscored: source_name/published_at, not sourceName/publishedAt)
     article = await Article.create({
       title: 'Test Article',
       content: 'This is a test article.',
       url: 'http://example.com/article',
-      sourceName: 'Example News',
-      publishedAt: new Date(),
+      source_name: 'Example News',
+      published_at: new Date(),
     });
   });
 
@@ -39,7 +40,7 @@ describe('Article Endpoints', () => {
     it('should get a single article by ID', async () => {
       const res = await request(app).get(`/api/articles/${article.id}`);
       expect(res.statusCode).toEqual(200);
-      expect(res.body).toHaveProperty('title', 'Test Article');
+      expect(res.body.data).toHaveProperty('title', 'Test Article');
     });
 
     it('should return 404 for a non-existent article', async () => {
@@ -56,7 +57,7 @@ describe('Article Endpoints', () => {
       expect(res.statusCode).toEqual(201);
       expect(res.body).toHaveProperty('message', 'Article saved successfully');
 
-      const saved = await SavedArticle.findOne({ where: { ArticleId: article.id } });
+      const saved = await SavedArticle.findOne({ where: { article_id: article.id } });
       expect(saved).not.toBeNull();
     });
 
@@ -65,11 +66,14 @@ describe('Article Endpoints', () => {
         .post(`/api/articles/${article.id}/save`)
         .set('Authorization', `Bearer ${token}`);
 
+      // Saving again is idempotent (200 "already saved"), not an error -
+      // matches SavedArticle.saveArticleForUser()'s findOrCreate behavior.
       const res = await request(app)
         .post(`/api/articles/${article.id}/save`)
         .set('Authorization', `Bearer ${token}`);
-      
-      expect(res.statusCode).toEqual(409);
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('message', 'Article already saved');
     });
   });
 
@@ -84,8 +88,8 @@ describe('Article Endpoints', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.statusCode).toEqual(200);
-      expect(res.body.length).toBe(1);
-      expect(res.body[0].article.title).toBe('Test Article');
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].title).toBe('Test Article');
     });
   });
 
@@ -98,11 +102,11 @@ describe('Article Endpoints', () => {
       const res = await request(app)
         .delete(`/api/articles/${article.id}/save`)
         .set('Authorization', `Bearer ${token}`);
-      
-      expect(res.statusCode).toEqual(200);
-      expect(res.body).toHaveProperty('message', 'Article unsaved successfully');
 
-      const saved = await SavedArticle.findOne({ where: { ArticleId: article.id } });
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('message', 'Article removed from saved articles');
+
+      const saved = await SavedArticle.findOne({ where: { article_id: article.id } });
       expect(saved).toBeNull();
     });
   });
