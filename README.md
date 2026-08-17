@@ -71,12 +71,12 @@ News-Aggregator-API-/
 
 ### Backend
 
-- **Runtime**: Node.js 16+
+- **Runtime**: Node.js 20+
 - **Framework**: Express.js
 - **Database**: MySQL with Sequelize ORM
-- **Authentication**: JWT, Passport.js (Local, Google, Facebook, Twitter)
-- **Logging**: Winston with daily rotate files
-- **Security**: Helmet, CORS, Rate Limiting, bcrypt
+- **Authentication**: JWT (with hashed, rotating refresh tokens), Passport.js (Local, Google, Facebook, Twitter), role-based admin access
+- **Logging**: Winston with daily rotate files, plus a DB-backed API request log
+- **Security**: Helmet (with CSP), CORS, per-route rate limiting, bcrypt, `sanitize-html` on ingested content - see `docs/SECURITY.md`
 - **Job Scheduling**: node-cron
 - **Testing**: Jest, Supertest
 - **Documentation**: Swagger/OpenAPI
@@ -85,10 +85,16 @@ News-Aggregator-API-/
 
 - **Library**: React 18
 - **Build Tool**: Vite
-- **Routing**: React Router v6
+- **Routing**: React Router v7
 - **HTTP Client**: Axios
-- **Styling**: Custom CSS with CSS Variables
+- **Styling**: Tailwind CSS v4, light/dark mode
 - **State Management**: React Context API
+- **Testing**: Vitest + React Testing Library (unit), Playwright (E2E)
+
+### Infrastructure
+
+- **Containers**: Docker (`infra/docker/`) - `newhub-server`, `newhub-client` (nginx), `newhub-mysql`
+- **CI/CD**: GitHub Actions - lint/test/build/E2E on every PR (`ci.yml`), image publish to GHCR on `main` (`cd.yml`)
 
 ## Getting Started
 
