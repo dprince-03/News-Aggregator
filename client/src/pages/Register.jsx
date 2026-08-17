@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { isValidEmail, isValidPassword } from '../utils/helpers';
-import './Auth.css';
+import { btn, input as inputClass, inputError, label as labelClass, fieldError, alert, spinner, card, cx } from '../utils/ui';
+import OAuthButtons from '../components/OAuthButtons';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -19,13 +20,12 @@ const Register = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    // Clear error for this field
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
     setApiError('');
   };
@@ -72,6 +72,7 @@ const Register = () => {
     setLoading(true);
     setApiError('');
 
+    // eslint-disable-next-line no-unused-vars
     const { confirmPassword, ...registerData } = formData;
     const result = await register(registerData);
 
@@ -85,118 +86,110 @@ const Register = () => {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="auth-header">
-            <h1>Create Account</h1>
-            <p>Join NewsHub to get personalized news</p>
-          </div>
-
-          {apiError && (
-            <div className="alert alert-danger">
-              {apiError}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
-              <label htmlFor="name" className="form-label">
-                Full Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                className={`form-control ${errors.name ? 'error' : ''}`}
-                placeholder="John Doe"
-                value={formData.name}
-                onChange={handleChange}
-                autoComplete="name"
-              />
-              {errors.name && <span className="form-error">{errors.name}</span>}
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="email" className="form-label">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                className={`form-control ${errors.email ? 'error' : ''}`}
-                placeholder="you@example.com"
-                value={formData.email}
-                onChange={handleChange}
-                autoComplete="email"
-              />
-              {errors.email && <span className="form-error">{errors.email}</span>}
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password" className="form-label">
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                className={`form-control ${errors.password ? 'error' : ''}`}
-                placeholder="At least 8 characters"
-                value={formData.password}
-                onChange={handleChange}
-                autoComplete="new-password"
-              />
-              {errors.password && <span className="form-error">{errors.password}</span>}
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="confirmPassword" className="form-label">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                className={`form-control ${errors.confirmPassword ? 'error' : ''}`}
-                placeholder="Repeat your password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                autoComplete="new-password"
-              />
-              {errors.confirmPassword && <span className="form-error">{errors.confirmPassword}</span>}
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary btn-block btn-lg"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="spinner"></span>
-                  Creating account...
-                </>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
-
-          <div className="auth-divider">
-            <span>OR</span>
-          </div>
-
-          <div className="auth-footer">
-            <p>
-              Already have an account?{' '}
-              <Link to="/login" className="auth-link">
-                Login
-              </Link>
-            </p>
-          </div>
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
+      <div className={cx(card, 'w-full max-w-md p-8')}>
+        <div className="mb-6 text-center">
+          <h1 className="font-display text-3xl font-bold">Create Account</h1>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Join NewsHub to get personalized news</p>
         </div>
+
+        {apiError && <div className={cx(alert.danger, 'mb-5')}>{apiError}</div>}
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label htmlFor="name" className={labelClass}>
+              Full Name
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              className={cx(inputClass, errors.name && inputError)}
+              placeholder="John Doe"
+              value={formData.name}
+              onChange={handleChange}
+              autoComplete="name"
+            />
+            {errors.name && <span className={fieldError}>{errors.name}</span>}
+          </div>
+
+          <div>
+            <label htmlFor="email" className={labelClass}>
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              className={cx(inputClass, errors.email && inputError)}
+              placeholder="you@example.com"
+              value={formData.email}
+              onChange={handleChange}
+              autoComplete="email"
+            />
+            {errors.email && <span className={fieldError}>{errors.email}</span>}
+          </div>
+
+          <div>
+            <label htmlFor="password" className={labelClass}>
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              className={cx(inputClass, errors.password && inputError)}
+              placeholder="At least 8 characters"
+              value={formData.password}
+              onChange={handleChange}
+              autoComplete="new-password"
+            />
+            {errors.password && <span className={fieldError}>{errors.password}</span>}
+          </div>
+
+          <div>
+            <label htmlFor="confirmPassword" className={labelClass}>
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              id="confirmPassword"
+              name="confirmPassword"
+              className={cx(inputClass, errors.confirmPassword && inputError)}
+              placeholder="Repeat your password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              autoComplete="new-password"
+            />
+            {errors.confirmPassword && <span className={fieldError}>{errors.confirmPassword}</span>}
+          </div>
+
+          <button type="submit" className={btn({ size: 'lg', block: true, className: 'mt-2' })} disabled={loading}>
+            {loading ? (
+              <>
+                <span className={spinner('h-4 w-4')} />
+                Creating account...
+              </>
+            ) : (
+              'Create Account'
+            )}
+          </button>
+        </form>
+
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+          <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Or continue with</span>
+          <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+        </div>
+
+        <OAuthButtons />
+
+        <p className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+          Already have an account?{' '}
+          <Link to="/login" className="font-medium text-rose-700 hover:underline dark:text-rose-400">
+            Login
+          </Link>
+        </p>
       </div>
     </div>
   );

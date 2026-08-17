@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { isValidEmail } from '../utils/helpers';
 import authService from '../services/authService';
-import './Profile.css';
+import { btn, input as inputClass, inputError, label as labelClass, fieldError, alert, card, cx } from '../utils/ui';
 
 const Profile = () => {
   const { user, updateProfile, refreshUser } = useAuth();
@@ -23,23 +23,17 @@ const Profile = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
-    setPasswordData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setPasswordData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
@@ -105,14 +99,11 @@ const Profile = () => {
       await authService.changePassword({
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword,
       });
       setMessage({ type: 'success', text: 'Password changed successfully!' });
       setShowPasswordForm(false);
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     }
@@ -121,172 +112,179 @@ const Profile = () => {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setFormData({
-      name: user?.name || '',
-      email: user?.email || '',
-    });
+    setFormData({ name: user?.name || '', email: user?.email || '' });
     setErrors({});
     setMessage({ type: '', text: '' });
   };
 
   return (
-    <div className="profile-page">
-      <div className="container container-sm">
-        <div className="profile-header">
-          <h1>Profile Settings</h1>
-          <p>Manage your account information</p>
+    <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="font-display text-3xl font-bold sm:text-4xl">Profile Settings</h1>
+        <p className="mt-2 text-zinc-500 dark:text-zinc-400">Manage your account information</p>
+      </div>
+
+      {message.text && (
+        <div className={cx(message.type === 'error' ? alert.danger : alert.success, 'mb-6')}>{message.text}</div>
+      )}
+
+      <div className={cx(card, 'mb-6')}>
+        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+          <h3 className="font-semibold">Personal Information</h3>
+          {!isEditing && (
+            <button type="button" className={btn({ variant: 'outline', size: 'sm' })} onClick={() => setIsEditing(true)}>
+              Edit Profile
+            </button>
+          )}
         </div>
-
-        {message.text && (
-          <div className={`alert alert-${message.type === 'error' ? 'danger' : 'success'}`}>
-            {message.text}
-          </div>
-        )}
-
-        <div className="profile-card card">
-          <div className="card-header">
-            <h3>Personal Information</h3>
-            {!isEditing && (
-              <button className="btn btn-outline btn-sm" onClick={() => setIsEditing(true)}>
-                Edit Profile
-              </button>
-            )}
-          </div>
-          <div className="card-body">
-            {isEditing ? (
-              <form onSubmit={handleProfileSubmit}>
-                <div className="form-group">
-                  <label htmlFor="name" className="form-label">Full Name</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    className={`form-control ${errors.name ? 'error' : ''}`}
-                    value={formData.name}
-                    onChange={handleChange}
-                  />
-                  {errors.name && <span className="form-error">{errors.name}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="email" className="form-label">Email Address</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    className={`form-control ${errors.email ? 'error' : ''}`}
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                  {errors.email && <span className="form-error">{errors.email}</span>}
-                </div>
-
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary" disabled={loading}>
-                    {loading ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={handleCancelEdit}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="profile-info">
-                <div className="info-row">
-                  <span className="info-label">Name:</span>
-                  <span className="info-value">{user?.name}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Email:</span>
-                  <span className="info-value">{user?.email}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Member since:</span>
-                  <span className="info-value">
-                    {new Date(user?.create_at || user?.created_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </span>
-                </div>
+        <div className="p-6">
+          {isEditing ? (
+            <form onSubmit={handleProfileSubmit} className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="name" className={labelClass}>
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  className={cx(inputClass, errors.name && inputError)}
+                  value={formData.name}
+                  onChange={handleChange}
+                />
+                {errors.name && <span className={fieldError}>{errors.name}</span>}
               </div>
-            )}
-          </div>
+
+              <div>
+                <label htmlFor="email" className={labelClass}>
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  className={cx(inputClass, errors.email && inputError)}
+                  value={formData.email}
+                  onChange={handleChange}
+                />
+                {errors.email && <span className={fieldError}>{errors.email}</span>}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className={btn()} disabled={loading}>
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button type="button" className={btn({ variant: 'secondary' })} onClick={handleCancelEdit}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-col gap-3 text-sm">
+              <div className="flex justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                <span className="text-zinc-500 dark:text-zinc-400">Name</span>
+                <span className="font-medium">{user?.name}</span>
+              </div>
+              <div className="flex justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                <span className="text-zinc-500 dark:text-zinc-400">Email</span>
+                <span className="font-medium">{user?.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500 dark:text-zinc-400">Member since</span>
+                <span className="font-medium">
+                  {new Date(user?.create_at || user?.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
+      </div>
 
-        <div className="profile-card card">
-          <div className="card-header">
-            <h3>Security</h3>
-            {!showPasswordForm && (
-              <button className="btn btn-outline btn-sm" onClick={() => setShowPasswordForm(true)}>
-                Change Password
-              </button>
-            )}
-          </div>
-          <div className="card-body">
-            {showPasswordForm ? (
-              <form onSubmit={handlePasswordSubmit}>
-                <div className="form-group">
-                  <label htmlFor="currentPassword" className="form-label">Current Password</label>
-                  <input
-                    type="password"
-                    id="currentPassword"
-                    name="currentPassword"
-                    className={`form-control ${errors.currentPassword ? 'error' : ''}`}
-                    value={passwordData.currentPassword}
-                    onChange={handlePasswordChange}
-                  />
-                  {errors.currentPassword && <span className="form-error">{errors.currentPassword}</span>}
-                </div>
+      <div className={card}>
+        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+          <h3 className="font-semibold">Security</h3>
+          {!showPasswordForm && (
+            <button
+              type="button"
+              className={btn({ variant: 'outline', size: 'sm' })}
+              onClick={() => setShowPasswordForm(true)}
+            >
+              Change Password
+            </button>
+          )}
+        </div>
+        <div className="p-6">
+          {showPasswordForm ? (
+            <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="currentPassword" className={labelClass}>
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  id="currentPassword"
+                  name="currentPassword"
+                  className={cx(inputClass, errors.currentPassword && inputError)}
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordChange}
+                />
+                {errors.currentPassword && <span className={fieldError}>{errors.currentPassword}</span>}
+              </div>
 
-                <div className="form-group">
-                  <label htmlFor="newPassword" className="form-label">New Password</label>
-                  <input
-                    type="password"
-                    id="newPassword"
-                    name="newPassword"
-                    className={`form-control ${errors.newPassword ? 'error' : ''}`}
-                    value={passwordData.newPassword}
-                    onChange={handlePasswordChange}
-                  />
-                  {errors.newPassword && <span className="form-error">{errors.newPassword}</span>}
-                </div>
+              <div>
+                <label htmlFor="newPassword" className={labelClass}>
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  name="newPassword"
+                  className={cx(inputClass, errors.newPassword && inputError)}
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
+                />
+                {errors.newPassword && <span className={fieldError}>{errors.newPassword}</span>}
+              </div>
 
-                <div className="form-group">
-                  <label htmlFor="confirmPassword" className="form-label">Confirm New Password</label>
-                  <input
-                    type="password"
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    className={`form-control ${errors.confirmPassword ? 'error' : ''}`}
-                    value={passwordData.confirmPassword}
-                    onChange={handlePasswordChange}
-                  />
-                  {errors.confirmPassword && <span className="form-error">{errors.confirmPassword}</span>}
-                </div>
+              <div>
+                <label htmlFor="confirmPassword" className={labelClass}>
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  className={cx(inputClass, errors.confirmPassword && inputError)}
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordChange}
+                />
+                {errors.confirmPassword && <span className={fieldError}>{errors.confirmPassword}</span>}
+              </div>
 
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary" disabled={loading}>
-                    {loading ? 'Changing...' : 'Change Password'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setShowPasswordForm(false);
-                      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                      setErrors({});
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <p className="text-gray">Password was last changed recently</p>
-            )}
-          </div>
+              <div className="flex gap-3 pt-2">
+                <button type="submit" className={btn()} disabled={loading}>
+                  {loading ? 'Changing...' : 'Change Password'}
+                </button>
+                <button
+                  type="button"
+                  className={btn({ variant: 'secondary' })}
+                  onClick={() => {
+                    setShowPasswordForm(false);
+                    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    setErrors({});
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Password was last changed recently</p>
+          )}
         </div>
       </div>
     </div>
