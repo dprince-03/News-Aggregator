@@ -7,7 +7,18 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 export default [
   { ignores: ['dist'] },
   {
+    // Config files and Playwright specs run under Node, not a browser -
+    // `process`, `__dirname`, etc. are real globals there, not typos.
+    files: ['playwright.config.js', 'e2e/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      globals: globals.node,
+      sourceType: 'module',
+    },
+  },
+  {
     files: ['**/*.{js,jsx}'],
+    ignores: ['playwright.config.js', 'e2e/**/*.js'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -33,7 +44,10 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
-      'react/prop-types': 'off',
+      // Was 'off'. Now that the reusable components (Article*, SearchBar,
+      // Private/PublicRoute, ErrorBoundary) all declare propTypes, keep
+      // this on so a new component with props doesn't quietly skip them.
+      'react/prop-types': 'error',
     },
   },
 ]
