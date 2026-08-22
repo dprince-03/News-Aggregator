@@ -118,7 +118,9 @@ Response `200`: `{ "success": true, "message": "Logout successful" }`
 
 Verifies the refresh token, checks it's stored and unrevoked, then
 **rotates** it — the old one is revoked and a new one issued alongside a
-new access token.
+new access token. Each user is capped at `MAX_ACTIVE_SESSIONS` (default
+`5`, `.env`-configurable) concurrent refresh tokens; issuing a new one
+past the cap revokes the oldest active session to make room.
 
 Request: `{ "refreshToken": "eyJ..." }`
 Response `200`:
@@ -139,9 +141,12 @@ Response: `{ "data": { "user": {...} } }`
 ### Change password
 
 `PUT /api/auth/change-password` — auth required. Revokes every refresh
-token for the user (forces re-login on other devices/sessions).
+token for the user and every outstanding, unused password-reset token
+(forces re-login on other devices/sessions, and invalidates any pending
+reset email).
 
-Request: `{ "currentPassword": "...", "newPassword": "..." }`
+Request: `{ "currentPassword": "...", "newPassword": "...", "confirmPassword": "..." }`
+(`confirmPassword` must match `newPassword` — required by the validator.)
 
 ### Forgot password
 
@@ -154,9 +159,13 @@ response also includes `resetToken` directly for convenience.
 ### Reset password
 
 `POST /api/auth/reset-password` — public. Verifies the reset token,
-updates the password, and revokes existing refresh tokens.
+updates the password, and revokes existing refresh tokens **and the reset
+token itself** — each reset token can only be redeemed once, even though
+the underlying JWT stays valid (signature + 1h expiry) regardless. A
+reused token gets a clean `400`, not a silent second password change.
 
-Request: `{ "token": "...", "newPassword": "..." }`
+Request: `{ "token": "...", "newPassword": "...", "confirmPassword": "..." }`
+(`confirmPassword` must match `newPassword` — required by the validator.)
 Response: new `{ token, refreshToken }` pair (auto-login after reset).
 
 ### OAuth (Google / Facebook / Twitter)

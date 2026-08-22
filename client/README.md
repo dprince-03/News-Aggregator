@@ -15,7 +15,7 @@ A modern, responsive React frontend for the News Aggregator API.
 ## Tech Stack
 
 - **React 18**: Modern React with hooks
-- **React Router 6**: Client-side routing
+- **React Router 7**: Client-side routing
 - **Vite**: Fast build tool and dev server
 - **Axios**: HTTP client for API requests
 - **CSS3**: Custom styling with CSS variables

@@ -93,7 +93,7 @@ News-Aggregator-API-/
 
 ### Infrastructure
 
-- **Containers**: Docker (`infra/docker/`) - `newhub-server`, `newhub-client` (nginx), `newhub-mysql`
+- **Containers**: Docker (`infra/docker/`) - `newshub-server`, `newshub-client` (nginx), `newshub-mysql`
 - **CI/CD**: GitHub Actions - lint/test/build/E2E on every PR (`ci.yml`), image publish to GHCR on `main` (`cd.yml`)
 
 ## Getting Started
@@ -162,8 +162,8 @@ DB_DIALECT=mysql
 JWT_SECRET=your-super-secret-jwt-key
 JWT_REFRESH_SECRET=your-refresh-secret-key
 
-# News API Keys
-NEWSAPI_KEY=your-newsapi-key
+# News API Keys (GNews is required - the primary source; the others are optional extras)
+GNEWSAPI_KEY=your-gnews-key
 GUARDIAN_API_KEY=your-guardian-key
 NYT_API_KEY=your-nyt-key
 
@@ -293,7 +293,7 @@ pm2 start server.js --name news-aggregator
 
 Once the server is running, access the API documentation at:
 
-- Swagger UI: `http://localhost:5080/api-docs`
+- Swagger UI: `http://localhost:5080/api/docs`
 
 ### Main Endpoints
 
@@ -421,13 +421,15 @@ npm run test:coverage
 
 - `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` - Database config
 - `JWT_SECRET`, `JWT_REFRESH_SECRET` - Authentication
-- At least one news API key (NewsAPI, Guardian, or NYT)
+- `GNEWSAPI_KEY` - the primary article source (Guardian/NYT keys are
+  optional extras, not substitutes - see `server/README.md`)
 
 ### Optional Backend Variables
 
 - OAuth credentials (Google, Facebook, Twitter)
 - Email configuration (for password reset)
-- Redis URL (for advanced caching)
+- `MAX_ACTIVE_SESSIONS` - concurrent-session cap per user (default `5`)
+- `GUARDIAN_API_KEY`, `NYT_API_KEY` - additional article sources
 
 ## Contributing
 
@@ -449,6 +451,6 @@ https://github.com/dprince-03/News-Aggregator-API-/issues
 
 ## Acknowledgments
 
-- News data provided by NewsAPI, The Guardian, and New York Times APIs
+- News data provided by GNews, The Guardian, and New York Times APIs
 - Authentication powered by Passport.js
 - UI inspired by modern news aggregators

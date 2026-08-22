@@ -1,6 +1,6 @@
 # Production stack: mysql + server (API) + client (nginx serving the built SPA,
-# reverse-proxying /api to the server). Project name "newhub" so containers/
-# images/volumes are all prefixed newhub-* instead of the parent directory name.
+# reverse-proxying /api to the server). Project name "newshub" so containers/
+# images/volumes are all prefixed newshub-* instead of the parent directory name.
 #
 # Usage:
 #   cp infra/docker/.env.example infra/docker/.env   # compose-level vars (DB creds, ports)
@@ -13,12 +13,12 @@
 # stack's mysql container with the credentials it was actually provisioned
 # with, regardless of whatever DB_* happens to be sitting in server/.env.
 
-name: newhub
+name: newshub
 
 services:
   mysql:
     image: mysql:8.0
-    container_name: newhub-mysql
+    container_name: newshub-mysql
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DB_NAME:-news_aggregator}
@@ -46,7 +46,7 @@ services:
     build:
       context: ../../server
       dockerfile: ../infra/docker/server.Dockerfile
-    container_name: newhub-server
+    container_name: newshub-server
     restart: unless-stopped
     env_file:
       - ../../server/.env
@@ -70,7 +70,7 @@ services:
       dockerfile: ../infra/docker/client.Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
-    container_name: newhub-client
+    container_name: newshub-client
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-80}:80"
@@ -82,10 +82,10 @@ services:
 
 volumes:
   mysql_data:
-    name: newhub_mysql_data
+    name: newshub_mysql_data
 
 networks:
   backend:
-    name: newhub_backend
+    name: newshub_backend
   frontend:
-    name: newhub_frontend
+    name: newshub_frontend

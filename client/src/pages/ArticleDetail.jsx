@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import articleService from '../services/articleService';
-import { formatDate, isValidImageUrl, getPlaceholderImage } from '../utils/helpers';
-import { useAuth } from '../context/AuthContext';
+import { formatDate, isValidImageUrl, getPlaceholderImage, cleanArticleContent } from '../utils/helpers';
+import { useAuth } from '../context/useAuth';
 import { btn, kicker, cx } from '../utils/ui';
 
 const ArticleDetail = () => {
@@ -87,6 +87,7 @@ const ArticleDetail = () => {
   }
 
   const imageUrl = isValidImageUrl(article.url_to_image) ? article.url_to_image : getPlaceholderImage();
+  const { text: contentText, isTruncated } = cleanArticleContent(article.content);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -171,10 +172,17 @@ const ArticleDetail = () => {
         <div className="prose prose-zinc max-w-none dark:prose-invert prose-headings:font-display">
           {article.description && <p className="text-lg font-medium text-zinc-700 dark:text-zinc-300">{article.description}</p>}
 
-          {article.content && (
+          {contentText && (
             <div>
-              <p>{article.content}</p>
+              <p>{contentText}{isTruncated && <span className="text-zinc-400 dark:text-zinc-500">&hellip;</span>}</p>
             </div>
+          )}
+
+          {isTruncated && (
+            <p className="rounded-lg bg-zinc-100 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              This is a preview from {article.source_name || 'the source'}. The full article isn&apos;t available
+              through our news provider &mdash; read the rest at the original source below.
+            </p>
           )}
 
           {article.url && (

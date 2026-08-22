@@ -11,8 +11,12 @@ const {
 	revokeAllRefreshTokens,
 	generateResetToken,
 	verifyResetToken,
+	persistResetToken,
+	consumeResetToken,
+	invalidateResetTokens,
 } = require('../middleware/auth.middleware');
 const emailService = require("../utils/emailServices.utils");
+const logger = require("../utils/logger.utils");
 
 // ============================================
 // @desc    Register a new user
@@ -60,6 +64,12 @@ const login = asyncHandler(async (req, res, next) => {
         }
 
         if (!user) {
+            logger.logSecurityEvent('login_failed', {
+                email: req.body?.email,
+                ip: req.ip,
+                reason: info?.message,
+            });
+
             // This callback runs inside passport's own async flow, not
             // inside the `login` function's call stack - asyncHandler can't
             // catch a throw here, so it would escape Express's error
@@ -124,6 +134,7 @@ const refreshTokenHandler = asyncHandler(async (req, res, next) => {
     try {
         decoded = verifyRefreshToken(refreshToken);
     } catch (error) {
+        logger.logSecurityEvent('refresh_token_invalid', { ip: req.ip });
         throw new AppError('Invalid or expired refresh token', 401);
     }
 
@@ -135,6 +146,10 @@ const refreshTokenHandler = asyncHandler(async (req, res, next) => {
     });
 
     if (!stored || stored.revoked_at || stored.expires_at < new Date()) {
+        // A revoked-but-presented token is either a stale client retry or a
+        // replay of a stolen/rotated-out token - worth a security event
+        // either way, tagged with which user it targeted.
+        logger.logSecurityEvent('refresh_token_reuse', { userId: decoded.id, ip: req.ip });
         throw new AppError('Refresh token has been revoked or is invalid', 401);
     }
 
@@ -238,6 +253,7 @@ const changePassword = asyncHandler(async (req, res, next) => {
 
     await user.update({ password: newPassword });
     await revokeAllRefreshTokens(user.id);
+    await invalidateResetTokens(user.id);
 
     res.status(200).json({
         success: true,
@@ -263,6 +279,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
     }
 
     const resetToken = generateResetToken(user);
+    await persistResetToken(user, resetToken);
 
     // send email with reset link here
     await emailService.sendPasswordResetEmail(user.email, resetToken);
@@ -292,6 +309,15 @@ const resetPassword = asyncHandler(async (req, res, next) => {
         throw new AppError("Invalid or expired reset token", 400);
     };
 
+    const consumed = await consumeResetToken(token);
+    if (!consumed) {
+        // The JWT itself still verifies (it's stateless and not yet
+        // expired) but it's already been redeemed once - reject the reuse
+        // rather than silently honoring it.
+        logger.logSecurityEvent('reset_token_reuse', { userId: decoded.id, ip: req.ip });
+        throw new AppError("This reset link has already been used", 400);
+    }
+
     const user = await User.findByPk(decoded.id);
 
     if (!user) {
@@ -300,6 +326,7 @@ const resetPassword = asyncHandler(async (req, res, next) => {
 
     await user.update({ password: newPassword });
     await revokeAllRefreshTokens(user.id);
+    await invalidateResetTokens(user.id);
 
     const newToken = generateToken(user);
     const newRefreshToken = generateRefreshToken(user);

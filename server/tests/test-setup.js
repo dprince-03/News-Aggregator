@@ -1,5 +1,5 @@
 const { sequelize } = require('../src/models');
-const { User, Article, Category, NewsSource, RefreshToken, SavedArticle, Preference } = require('../src/models');
+const { User, Article, Category, NewsSource, RefreshToken, SavedArticle, Preference, PasswordResetToken } = require('../src/models');
 // bcrypt (native), not bcryptjs - the latter was never a dependency here,
 // and the User model already uses bcrypt everywhere else.
 const bcrypt = require('bcrypt');
@@ -24,6 +24,7 @@ const setupTestDB = () => {
     // is the standard way to reset a MySQL test database between tests.
     await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
     await RefreshToken.destroy({ where: {}, truncate: true });
+    await PasswordResetToken.destroy({ where: {}, truncate: true });
     await SavedArticle.destroy({ where: {}, truncate: true });
     await Preference.destroy({ where: {}, truncate: true });
     await User.destroy({ where: {}, truncate: true });

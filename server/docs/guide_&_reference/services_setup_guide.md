@@ -1,5 +1,14 @@
 # Services & Utils - Complete Setup Guide
 
+> **Historical dev note, not current architecture.** As flagged in this
+> folder's own `README.md`, this guide predates a later switch from
+> NewsAPI.org to GNews as the primary aggregator source (`NEWSAPI_KEY`
+> and `news_api.services.js` no longer exist - see `src/services/
+> gnews.service.js` and the `GNEWSAPI_KEY` env var for what's actually
+> wired up today, and `docs/API.md` for the current, canonical API
+> reference). The Guardian/NYT sections and the general utils/cron/email
+> setup below are still accurate.
+
 ## 📦 What Was Created
 
 ### Utils (src/utils/)
@@ -40,7 +49,7 @@ EMAIL_PASSWORD=your_app_password
 EMAIL_FROM=noreply@newsaggregator.com
 
 # Frontend URL (for email links)
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:3000
 APP_NAME=News Aggregator
 
 # News API Keys (Get from respective websites)

@@ -1,6 +1,6 @@
 name: CD
 
-# Builds and pushes newhub-server / newhub-client to GitHub Container
+# Builds and pushes newshub-server / newshub-client to GitHub Container
 # Registry on every push to main that passes CI. GHCR is the zero-extra-
 # setup choice - it only needs this repo's own GITHUB_TOKEN, no external
 # registry account to provision. Actual deployment (pulling these images
@@ -47,7 +47,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/newhub-${{ matrix.service }}
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/newshub-${{ matrix.service }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=

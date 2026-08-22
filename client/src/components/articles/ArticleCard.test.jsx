@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ArticleCard from './ArticleCard';
 import articleService from '../../services/articleService';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 
 vi.mock('../../services/articleService', () => ({
   default: {
@@ -12,7 +12,7 @@ vi.mock('../../services/articleService', () => ({
   },
 }));
 
-vi.mock('../../context/AuthContext', () => ({
+vi.mock('../../context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 

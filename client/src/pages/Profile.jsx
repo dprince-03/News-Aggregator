@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { isValidEmail } from '../utils/helpers';
 import authService from '../services/authService';
 import { btn, input as inputClass, inputError, label as labelClass, fieldError, alert, card, cx } from '../utils/ui';

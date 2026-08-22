@@ -1,15 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-
-const ThemeContext = createContext(null);
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-};
+import { ThemeContext } from './ThemeContextBase';
 
 const getInitialTheme = () => {
   const stored = localStorage.getItem('theme');

@@ -10,6 +10,7 @@ const NewsSource = require("./newsSource.models");
 const Category = require("./category.models");
 const ApiLog = require("./apiLog.models");
 const RefreshToken = require("./refreshToken.models");
+const PasswordResetToken = require("./passwordResetToken.models");
 
 // Initialize models
 const models = {
@@ -21,6 +22,7 @@ const models = {
   Category,
   ApiLog,
   RefreshToken,
+  PasswordResetToken,
 };
 
 // Define associations
@@ -70,6 +72,17 @@ User.hasMany(RefreshToken, {
 });
 
 RefreshToken.belongsTo(User, {
+  foreignKey: 'user_id',
+  as: 'user'
+});
+
+// User - PasswordResetToken association (One-to-Many)
+User.hasMany(PasswordResetToken, {
+  foreignKey: 'user_id',
+  as: 'passwordResetTokens'
+});
+
+PasswordResetToken.belongsTo(User, {
   foreignKey: 'user_id',
   as: 'user'
 });

@@ -2,6 +2,7 @@ const request = require('supertest');
 const app = require('../server'); // Assuming your express app is exported from server.js
 const setupTestDB = require('./test-setup');
 const { User, RefreshToken } = require('../src/models');
+const { generateResetToken, persistResetToken } = require('../src/middleware/auth.middleware');
 
 describe('Auth Endpoints', () => {
   setupTestDB();
@@ -219,6 +220,102 @@ describe('Auth Endpoints', () => {
       const user = await User.findOne({ where: { email: 'test@example.com' } });
       const remaining = await RefreshToken.count({ where: { user_id: user.id, revoked_at: null } });
       expect(remaining).toBe(0);
+    });
+  });
+
+  describe('POST /api/auth/reset-password (single-use enforcement)', () => {
+    it('resets the password successfully with a freshly-issued token', async () => {
+      const user = await User.findOne({ where: { email: 'test@example.com' } });
+      const resetToken = generateResetToken(user);
+      await persistResetToken(user, resetToken);
+
+      const res = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: resetToken,
+          newPassword: 'ResetPassword123!',
+          confirmPassword: 'ResetPassword123!',
+        });
+      expect(res.statusCode).toEqual(200);
+
+      const loginRes = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'ResetPassword123!' });
+      expect(loginRes.statusCode).toEqual(200);
+    });
+
+    it('rejects reusing an already-consumed reset token, even though the JWT itself is still valid', async () => {
+      const user = await User.findOne({ where: { email: 'test@example.com' } });
+      const resetToken = generateResetToken(user);
+      await persistResetToken(user, resetToken);
+
+      await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: resetToken,
+          newPassword: 'ResetPassword123!',
+          confirmPassword: 'ResetPassword123!',
+        })
+        .expect(200);
+
+      const reuse = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: resetToken,
+          newPassword: 'AnotherPassword456!',
+          confirmPassword: 'AnotherPassword456!',
+        });
+      expect(reuse.statusCode).toEqual(400);
+      expect(reuse.body.message).toMatch(/already been used/i);
+    });
+
+    it('rejects an unknown/never-issued reset token', async () => {
+      const user = await User.findOne({ where: { email: 'test@example.com' } });
+      const resetToken = generateResetToken(user);
+      // Never persisted, so consumeResetToken finds no matching row.
+
+      const res = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: resetToken,
+          newPassword: 'ResetPassword123!',
+          confirmPassword: 'ResetPassword123!',
+        });
+      expect(res.statusCode).toEqual(400);
+    });
+  });
+
+  describe('Concurrent session limit', () => {
+    it('caps active refresh tokens per user, revoking the oldest past the limit', async () => {
+      // MAX_ACTIVE_SESSIONS defaults to 5 when unset.
+      const maxSessions = Number.parseInt(process.env.MAX_ACTIVE_SESSIONS, 10) || 5;
+      const logins = [];
+      for (let i = 0; i < maxSessions + 1; i += 1) {
+        // Sequential, not parallel: enforceSessionLimit reads-then-writes,
+        // so concurrent logins could race past the cap.
+        // eslint-disable-next-line no-await-in-loop
+        const res = await request(app)
+          .post('/api/auth/login')
+          .send({ email: 'test@example.com', password: 'Password123!' });
+        logins.push(res.body.data.refreshToken);
+      }
+
+      const user = await User.findOne({ where: { email: 'test@example.com' } });
+      const active = await RefreshToken.count({ where: { user_id: user.id, revoked_at: null } });
+      expect(active).toBe(maxSessions);
+
+      // The very first login's refresh token should have been the one
+      // revoked to make room, since sessions are evicted oldest-first.
+      const oldest = await request(app)
+        .post('/api/auth/refresh-token')
+        .send({ refreshToken: logins[0] });
+      expect(oldest.statusCode).toEqual(401);
+
+      // The most recent login's refresh token must still be usable.
+      const newest = await request(app)
+        .post('/api/auth/refresh-token')
+        .send({ refreshToken: logins[logins.length - 1] });
+      expect(newest.statusCode).toEqual(200);
     });
   });
 });

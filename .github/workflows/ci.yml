@@ -198,7 +198,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Build server image
-        run: docker build -f infra/docker/server.Dockerfile -t newhub-server:ci server
+        run: docker build -f infra/docker/server.Dockerfile -t newshub-server:ci server
 
       - name: Build client image
-        run: docker build -f infra/docker/client.Dockerfile -t newhub-client:ci client
+        run: docker build -f infra/docker/client.Dockerfile -t newshub-client:ci client

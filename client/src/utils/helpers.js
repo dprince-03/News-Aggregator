@@ -83,6 +83,19 @@ export const isValidImageUrl = (url) => {
   }
 };
 
+// News APIs (GNews, NewsAPI) truncate `content` on free tiers and append
+// a "[+1234 chars]" marker instead of returning the full article body.
+// Strip that marker so the UI never shows the raw placeholder text, and
+// report whether the article was truncated so the caller can point the
+// reader to the original source.
+export const cleanArticleContent = (content) => {
+  if (!content) return { text: '', isTruncated: false };
+  const trimmed = content.trim();
+  const match = trimmed.match(/\[\+?\d+\s?chars?\]$/i);
+  if (!match) return { text: trimmed, isTruncated: false };
+  return { text: trimmed.slice(0, match.index).trim(), isTruncated: true };
+};
+
 // Get placeholder image
 export const getPlaceholderImage = () => {
   return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23e5e7eb" width="400" height="300"/%3E%3Ctext fill="%236b7280" font-family="sans-serif" font-size="24" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';

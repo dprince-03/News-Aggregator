@@ -23,7 +23,7 @@ RESTful API for the News Aggregator application built with Node.js, Express, and
   - Secure password hashing with bcrypt
 
 - **Article Management**
-  - Fetch articles from multiple sources (NewsAPI, Guardian, NYT)
+  - Fetch articles from multiple sources (GNews, Guardian, NYT)
   - Automated article aggregation with cron jobs
   - Search and filter capabilities
   - Pagination support
@@ -102,60 +102,73 @@ The API will be available at `http://localhost:5080`
 
 ### Environment Variables
 
-Create a `.env` file in the server directory with the following variables:
+Create a `.env` file in the server directory - `.env.example` is the
+up-to-date template; the block below mirrors it:
 
 ```env
 # Server
-NODE_ENV=development
 PORT=5080
+NODE_ENV=development
 
 # Database
 DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_password
+DB_PORT=3306
 DB_NAME=news_aggregator
-DB_DIALECT=mysql
+DB_USER=user
+DB_PASSWORD=user_password
 
 # JWT
-JWT_SECRET=your-jwt-secret
-JWT_REFRESH_SECRET=your-refresh-secret
-JWT_EXPIRES_IN=24h
-JWT_REFRESH_EXPIRES_IN=30d
+JWT_SECRET=your_super_secret_jwt_key_change_this_in_production_min_32_chars
+JWT_EXPIRE=7d
+JWT_REFRESH_SECRET=your_refresh_secret_key_min_32_chars
+JWT_REFRESH_EXPIRE=30d
 
-# News APIs
-NEWSAPI_KEY=your-newsapi-key
-GUARDIAN_API_KEY=your-guardian-key
-NYT_API_KEY=your-nyt-key
+# Session (OAuth handshake only - this app never uses session-based login)
+SESSION_SECRET=your_session_secret_key_min_32_chars
 
-# OAuth (Optional)
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-FACEBOOK_APP_ID=your-facebook-app-id
-FACEBOOK_APP_SECRET=your-facebook-app-secret
-TWITTER_CONSUMER_KEY=your-twitter-key
-TWITTER_CONSUMER_SECRET=your-twitter-secret
+# OAuth (each provider only registers if its credentials are set)
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CALLBACK_URL=http://localhost:5080/api/auth/google/callback
+FACEBOOK_APP_ID=your_facebook_app_id
+FACEBOOK_APP_SECRET=your_facebook_app_secret
+FACEBOOK_CALLBACK_URL=http://localhost:5080/api/auth/facebook/callback
+TWITTER_CONSUMER_KEY=your_twitter_consumer_key
+TWITTER_CONSUMER_SECRET=your_twitter_consumer_secret
+TWITTER_CALLBACK_URL=http://localhost:5080/api/auth/twitter/callback
 
-# Email (Optional)
+# Email (optional - password reset emails)
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASSWORD=your-email-password
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_email_app_password
 EMAIL_FROM=noreply@newsaggregator.com
 
-# Frontend URL
-FRONTEND_URL=http://localhost:3000
+# External news APIs
+GNEWSAPI_KEY=get_from_gnews.io
+GUARDIAN_API_KEY=get_from_theguardian.com
+NYT_API_KEY=get_from_developer.nytimes.com
 
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
+ENABLE_CRON=true
+
+# Logging
+LOG_LEVEL=info
+ENABLE_DB_LOGGING=true
+
+# Session limits
+MAX_ACTIVE_SESSIONS=5
+
+# Frontend URL (used in OAuth redirects and reset-password email links)
+FRONTEND_URL=http://localhost:3000
 ```
 
 ### Getting API Keys
 
-**NewsAPI** (Required for article fetching):
-1. Sign up at https://newsapi.org/
-2. Get your free API key
-3. Add to `NEWSAPI_KEY`
+**GNews** (Required - the primary article-fetching source; NewsAPI.org was
+used in an earlier version of this project and has been fully replaced):
+1. Sign up at https://gnews.io/
+2. Get your free API key (100 requests/day)
+3. Add to `GNEWSAPI_KEY`
 
 **The Guardian** (Optional):
 1. Register at https://open-platform.theguardian.com/
@@ -174,7 +187,7 @@ RATE_LIMIT_MAX_REQUESTS=100
 Once the server is running, access the Swagger documentation at:
 
 ```
-http://localhost:5080/api-docs
+http://localhost:5080/api/docs
 ```
 
 ### Base URL
@@ -182,6 +195,10 @@ http://localhost:5080/api-docs
 ```
 http://localhost:5080/api
 ```
+
+The endpoint examples below cover the common cases; `docs/API.md` is the
+canonical, kept-current reference for the full request/response envelope
+and every endpoint (including forgot/reset-password).
 
 ### Authentication Endpoints
 
@@ -248,7 +265,8 @@ Content-Type: application/json
 
 {
   "currentPassword": "oldpassword",
-  "newPassword": "newpassword123"
+  "newPassword": "newpassword123",
+  "confirmPassword": "newpassword123"
 }
 ```
 
@@ -363,6 +381,11 @@ Authorization: Bearer <token>
 
 ## Database Schema
 
+> Tables are created by Sequelize's `sync()` (`src/models/*.models.js`),
+> not hand-written migrations - the SQL below is a reference rendering of
+> those model definitions, not a separate source of truth. If the two ever
+> disagree, the model file is correct.
+
 ### Users Table
 ```sql
 CREATE TABLE users (
@@ -374,10 +397,44 @@ CREATE TABLE users (
   facebook_id VARCHAR(255) UNIQUE,
   twitter_id VARCHAR(255) UNIQUE,
   profile_picture VARCHAR(512),
+  role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 ```
+`role` gates `/api/admin/*` (`authorize('admin')`); promote a user via
+`npm run admin:promote`, not an API endpoint - see `docs/SECURITY.md` §1.
+
+### Refresh Tokens Table
+```sql
+CREATE TABLE refresh_tokens (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL REFERENCES users(id),
+  token_hash VARCHAR(255) UNIQUE NOT NULL,
+  expires_at DATETIME NOT NULL,
+  revoked_at DATETIME,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+Stores a SHA-256 hash of each issued refresh token, never the raw token.
+Rotated on every use; revoked on logout, password change/reset, or once a
+user exceeds `MAX_ACTIVE_SESSIONS` (default `5`) active sessions.
+
+### Password Reset Tokens Table
+```sql
+CREATE TABLE password_reset_tokens (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL REFERENCES users(id),
+  token_hash VARCHAR(255) UNIQUE NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+Makes each password-reset link single-use: `used_at` is set the moment a
+token is redeemed, so a second attempt with the same (still
+JWT-signature-valid) token is rejected. See `docs/API.md`'s reset-password
+endpoint and `docs/SECURITY.md` §2.
 
 ### Articles Table
 ```sql
@@ -429,6 +486,45 @@ CREATE TABLE saved_articles (
 );
 ```
 
+### Categories & News Sources Tables
+```sql
+CREATE TABLE categories (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100) UNIQUE NOT NULL,
+  display_name VARCHAR(100),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE news_sources (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) UNIQUE NOT NULL,
+  display_name VARCHAR(255),
+  website_url VARCHAR(512),
+  api_source VARCHAR(100),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+Reference data surfaced by `GET /api/preferences/{categories,sources}` for
+the Preferences page's pick-lists.
+
+### API Logs Table
+```sql
+CREATE TABLE api_logs (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  api_source VARCHAR(100) NOT NULL,
+  endpoint VARCHAR(255),
+  status_code INT,
+  response_time_ms INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+Populated for every external API call (GNews/Guardian/NYT) and, when
+`ENABLE_DB_LOGGING=true`, every internal request too. Queried via
+`/api/admin/api-logs*` (admin-only) or `npm run stats`. See
+`server/docs/guide_&_reference/logging_comparison.md` for how this
+relates to the separate Winston file logs.
+
 ## Authentication
 
 ### JWT Tokens
@@ -441,8 +537,12 @@ Authorization: Bearer <your-token>
 
 ### Token Expiration
 
-- Access Token: 24 hours (configurable)
-- Refresh Token: 30 days (configurable)
+- Access Token: 7 days by default (`JWT_EXPIRE`)
+- Refresh Token: 30 days by default (`JWT_REFRESH_EXPIRE`), rotated on
+  every use, and capped at `MAX_ACTIVE_SESSIONS` (default `5`) concurrent
+  sessions per user - the oldest is revoked once a new login exceeds it.
+- Password Reset Token: 1 hour, single-use (see `password_reset_tokens`
+  above and `docs/SECURITY.md` §2).
 
 ### Protected Routes
 
@@ -535,16 +635,19 @@ server/
 │   │   ├── savedArticle.models.js
 │   │   ├── category.models.js
 │   │   ├── newsSource.models.js
-│   │   └── apiLog.models.js
+│   │   ├── apiLog.models.js
+│   │   ├── refreshToken.models.js
+│   │   └── passwordResetToken.models.js
 │   ├── routes/
 │   │   ├── auth.routes.js
 │   │   ├── article.routes.js
 │   │   ├── preference.routes.js
 │   │   └── admin.routes.js
 │   ├── services/
-│   │   ├── newsapi.service.js    # NewsAPI integration
+│   │   ├── gnews.service.js      # GNews (primary source)
 │   │   ├── guardian.service.js   # Guardian API
-│   │   └── nyt.service.js        # NYT API
+│   │   ├── nyt.service.js        # NYT API
+│   │   └── aggregator.service.js # Combines/sanitizes/dedupes all three
 │   ├── utils/
 │   │   ├── logger.utils.js       # Winston logger
 │   │   ├── secrets.utils.js      # Secret management
@@ -754,4 +857,4 @@ For issues and questions:
 - Express.js team
 - Sequelize ORM
 - Passport.js
-- NewsAPI, The Guardian, New York Times APIs
+- GNews, The Guardian, New York Times APIs

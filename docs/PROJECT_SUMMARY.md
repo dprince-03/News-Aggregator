@@ -126,7 +126,7 @@ npm run dev
 # Access at:
 # - Frontend: http://localhost:3000
 # - Backend: http://localhost:5080
-# - API Docs: http://localhost:5080/api-docs
+# - API Docs: http://localhost:5080/api/docs
 ```
 
 ### Available Commands
@@ -398,7 +398,7 @@ Built with:
 - Axios
 
 Data from:
-- NewsAPI
+- GNews
 - The Guardian
 - New York Times
 

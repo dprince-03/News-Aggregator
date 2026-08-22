@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { formatDate, isValidImageUrl, getPlaceholderImage } from '../../utils/helpers';
 import articleService from '../../services/articleService';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { kicker } from '../../utils/ui';
 
 const ArticleCard = ({ article, onSaveToggle }) => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { getInitials } from '../../utils/helpers';
 import { cx } from '../../utils/ui';
 import ThemeToggle from '../ThemeToggle';

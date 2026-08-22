@@ -4,6 +4,62 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed (this pass)
+
+- **`ArticleDetail.jsx` displayed truncated article text as if it were
+  complete.** GNews (and NewsAPI-shaped feeds generally) append a raw
+  `"...[+1234 chars]"` marker when the free tier doesn't return the full
+  body - the page rendered that marker verbatim, reading as broken/cut-off
+  text. Added `cleanArticleContent` (`client/src/utils/helpers.js`) to
+  strip the marker and detect truncation; the page now shows an explicit
+  "this is a preview, read the rest at the source" notice instead.
+- `AuthContext.jsx`/`ThemeContext.jsx` tripped ESLint's
+  `react-refresh/only-export-components` (mixed hook + component exports
+  in one file, `--max-warnings 0` in CI). Split each into a context-object
+  file, a provider component file, and a hook file
+  (`useAuth.js`/`useTheme.js`); updated all 13 importers and the one test
+  that mocked the old module path.
+- `newhub-*` naming (Docker containers/images/volumes/networks,
+  `docs/`, CI/CD workflows) was a typo of the project's actual name -
+  renamed to `newshub-*` everywhere.
+
+### Security (this pass)
+
+Server-side; full reasoning in `docs/SECURITY.md` §0/§2/§7/§8. **Not yet
+live-verified against a running DB** - see the caveat at the top of
+`docs/TODO.md`.
+
+- **Structured security-event logging** - `logger.logSecurityEvent(event,
+  meta)`, wired into failed login (email + IP + reason), refresh-token
+  reuse/invalidity, and reset-token reuse. Previously only "a login failed
+  from IP X" was logged, never which account was targeted.
+- **Reset-token single-use tracking** - new `password_reset_tokens` table
+  (mirrors `refresh_tokens`' hash-lookup pattern). A reset link can now
+  only be redeemed once, even within its still-valid 1h JWT window.
+- **Concurrent-session limits** - `MAX_ACTIVE_SESSIONS` (default `5`,
+  `.env`-configurable); oldest session revoked once a user hits the cap.
+- **`npm audit`: 0 vulnerabilities, server and client** (was 6 + 0 after
+  the router bump). `sanitize-html` bumped `2.17.1` → `^2.17.7` (patches a
+  moderate `javascript:`-URI advisory) - previously pinned to the
+  vulnerable version because the fix's `htmlparser2` dependency went
+  ESM-only and broke every Jest test; fixed via a manual Jest mock
+  (`server/__mocks__/sanitize-html.js`) instead of staying pinned.
+  `uuid` (via `sequelize`) and `passport` (via `passport-oauth`) forced to
+  patched versions via `package.json` `overrides`.
+
+### Documentation (this pass)
+
+- Reconciliation pass across every README and `docs/` file: fixed
+  `client/README.md`'s stale "React Router 6", `server/README.md`'s
+  Database Schema/Environment Variables/project-tree sections (missing
+  `refresh_tokens`/`password_reset_tokens`/`role`, wrong token-expiry
+  defaults, and multiple leftover `NewsAPI`/`NEWSAPI_KEY` references from
+  before the GNews switch), `docs/API.md`'s change-password/reset-password
+  examples (missing the required `confirmPassword` field), and
+  `server/docs/guide_&_reference/services_setup_guide.md`'s wrong frontend
+  port (`5173` instead of this project's actual `3000`) and un-flagged
+  NewsAPI-era content.
+
 ### Security
 
 Full test-plan writeup in `docs/SECURITY.md`. Highlights:
@@ -166,7 +222,7 @@ calling both APIs directly.
 - `is_saved` on public article endpoints (via a new `optionalAuth`-gated
   bulk lookup, not per-article).
 - `docker-compose.yml` stack (`infra/`) - mysql + server + client, named
-  `newhub`.
+  `newshub`.
 - CI (`.github/workflows/ci.yml`) and CD (`cd.yml`) GitHub Actions workflows.
 - Frontend test suite (Vitest + React Testing Library) - previously zero
   frontend tests.

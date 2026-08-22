@@ -50,7 +50,7 @@ cp .env.example .env
 # Edit .env with your details:
 # - Database credentials
 # - Generate JWT secrets: npm run secrets:gen
-# - Add at least one news API key
+# - Add a GNews API key (required - the primary article source)
 ```
 
 **Quick .env setup:**
@@ -68,8 +68,8 @@ DB_NAME=news_aggregator
 JWT_SECRET=your-generated-secret
 JWT_REFRESH_SECRET=your-generated-refresh-secret
 
-# Get free key from: https://newsapi.org/
-NEWSAPI_KEY=your-newsapi-key
+# Get free key from: https://gnews.io/
+GNEWSAPI_KEY=your-gnews-key
 ```
 
 ### 4. Configure Frontend
@@ -120,7 +120,7 @@ npm run dev
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:5080
-- **API Documentation**: http://localhost:5080/api-docs
+- **API Documentation**: http://localhost:5080/api/docs
 
 ## First Steps
 
@@ -182,12 +182,12 @@ The backend fetches articles automatically every hour. To fetch immediately:
 
 ## Getting API Keys
 
-### NewsAPI (Free)
+### GNews (Free, required - the primary article source)
 
-1. Go to https://newsapi.org/
-2. Sign up for free account
+1. Go to https://gnews.io/
+2. Sign up for a free account (100 requests/day)
 3. Copy your API key
-4. Add to `NEWSAPI_KEY` in server/.env
+4. Add to `GNEWSAPI_KEY` in server/.env
 
 ### The Guardian (Optional)
 
@@ -207,7 +207,7 @@ The backend fetches articles automatically every hour. To fetch immediately:
 - Read the full [README.md](./README.md) for detailed documentation
 - Check out [server/README.md](./server/README.md) for backend API details
 - Check out [client/README.md](./client/README.md) for frontend details
-- Explore the API documentation at http://localhost:5080/api-docs
+- Explore the API documentation at http://localhost:5080/api/docs
 
 ## Need Help?
 

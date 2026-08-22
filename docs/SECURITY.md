@@ -2,9 +2,14 @@
 
 A checklist for a security review pass across the platform (Express API +
 MySQL, the React SPA, and the `infra/` Docker/nginx stack). Not a static
-report — every `[x]` below was verified live against the running `newhub`
+report — every `[x]` below was verified live against the running `newshub`
 Docker stack (`docker compose -f infra/docker/docker-compose.yml up`), not
-just read in the source.
+just read in the source, **with one noted exception**: the concurrent-
+session-limit and reset-token-single-use items in §2 were added in a pass
+where the local MySQL instance wasn't reachable with this environment's
+`.env` credentials, so those two were code-reviewed and covered by new
+regression tests rather than exercised against a real, running database.
+Re-verify them live before treating this doc as fully current again.
 
 ## 1. Authentication & authorization
 
@@ -83,19 +88,35 @@ just read in the source.
       revokes every refresh token for that user. A stolen refresh token
       stops working the moment the account holder changes their password
       or logs out, not just at natural expiry.
-- [ ] **Concurrent session limits** — **Reviewed, left as a product
-      decision.** No cap on simultaneous logins/refresh tokens per user,
-      by design (no check against existing sessions at login time). Not a
-      bug - a legitimate tradeoff someone building an admin console might
-      want to reconsider, not something to decide unilaterally here.
-- [ ] **Reset-token single-use** — **Reviewed, accepted tradeoff.** Reset
-      tokens are stateless JWTs with a 1h expiry, not tracked in a
-      denylist - an intercepted-but-unused token could reset the password
-      more than once within that hour. Closing this needs a used-token
-      table (the same pattern `refresh_tokens` already uses); not built
-      this pass given the 1h window already bounds the exposure to "no
-      worse than a single reset already grants." Candidate for the same
-      hardening as refresh tokens if this app's threat model changes.
+- [x] ~~**Concurrent session limits**~~ — **Fixed.** Previously no cap
+      existed on simultaneous logins/refresh tokens per user. Added
+      `MAX_ACTIVE_SESSIONS` (default `5`, `.env`-configurable) -
+      `enforceSessionLimit` runs on every token issuance
+      (`auth.middleware.js`'s `persistRefreshToken`), revoking the
+      oldest active session(s) for that user once they're at the cap
+      before the new one is persisted. Regression test added
+      (`tests/auth.test.js`) asserting that logging in
+      `MAX_ACTIVE_SESSIONS + 1` times leaves exactly the cap's worth of
+      active sessions, with the oldest evicted first and the newest still
+      usable - **not live-verified against a running DB this pass** (see
+      the note at the end of this section); reviewed carefully against
+      the existing, already-live-verified `RefreshToken` rotation logic
+      it extends.
+- [x] ~~**Reset-token single-use**~~ — **Fixed.** Reset tokens were
+      stateless JWTs with no denylist - an intercepted-but-unused token
+      could reset the password more than once within its 1h window.
+      Added a `password_reset_tokens` table (mirrors `refresh_tokens`'
+      hash-lookup pattern): `persistResetToken` records a hash of every
+      issued reset token on send, `consumeResetToken` atomically marks it
+      used on first redemption (`UPDATE ... WHERE used_at IS NULL`, so a
+      race between two concurrent redemption attempts can't double-spend
+      it), and a reuse attempt is rejected with a clean 400 even though
+      the JWT itself would still verify. A successful password change
+      (via either reset-password or change-password) also invalidates any
+      other outstanding, unused reset tokens for that user. Regression
+      tests added (`tests/auth.test.js`) for the happy path, reuse
+      rejection, and an unknown/never-issued token - **not live-verified
+      against a running DB this pass** (see note below).
 
 ## 3. Input validation & injection
 
@@ -208,15 +229,19 @@ just read in the source.
 - [x] ~~**Request logging**~~ — **Verified.** Every request (including
       failed auth attempts) is logged with IP, method, path, status code,
       and response time (Winston + optionally the `api_logs` DB table).
-- [ ] **Structured security-event logging** — **Reviewed, real gap
-      flagged, not built.** The request log above captures *that* a login
-      failed and from where, but not *which* email was targeted (that's in
-      the request body, never persisted) - so detecting "50 failed logins
-      against one specific account" isn't currently queryable, only "50
-      failed logins from one IP" is. Closing this properly means adding a
-      dedicated audit-log table and call sites in the auth controllers,
-      which is a small feature in its own right, not a one-line fix -
-      flagged for `docs/TODO.md` rather than rushed here.
+- [x] ~~**Structured security-event logging**~~ — **Fixed.** The request
+      log previously captured *that* a login failed and from where, but
+      not *which* email was targeted (that lived only in the request
+      body, never persisted) - so "50 failed logins against one specific
+      account" wasn't queryable, only "50 failed logins from one IP" was.
+      Added `logger.logSecurityEvent(event, meta)` (`logger.utils.js`,
+      warn-level, file-only per the existing logging architecture - see
+      `server/docs/guide_&_reference/logging_comparison.md`) and wired it
+      into every auth failure branch that has an email or user id to
+      report: failed login (`login_failed` - email, IP, reason), refresh
+      token reuse/invalidity (`refresh_token_invalid`/
+      `refresh_token_reuse` - user id, IP), and reset-token reuse
+      (`reset_token_reuse` - user id, IP).
 - [ ] **Error tracking (Sentry or similar)** — **Not wired up.** Errors
       are logged to Winston/console/DB but nothing pages anyone. Tracked
       in `docs/TODO.md` - needs an external account this repo can't
@@ -232,12 +257,12 @@ just read in the source.
 
 ## 8. Infrastructure & supply chain
 
-- [x] ~~**Container port exposure**~~ — **Verified.** `newhub-server` (the
+- [x] ~~**Container port exposure**~~ — **Verified.** `newshub-server` (the
       API) publishes no port to the host at all - only reachable via
-      nginx's internal Docker network proxy. `newhub-mysql`'s port is
+      nginx's internal Docker network proxy. `newshub-mysql`'s port is
       bound to `127.0.0.1` only (host-local tooling access, e.g. running
       the test suite against the stack - not exposed to the network).
-      `newhub-client` is the only container that needs to be reachable
+      `newshub-client` is the only container that needs to be reachable
       externally, and is the only one publishing a port.
 - [x] ~~**Secrets defaults**~~ — **Verified.** No hardcoded/fallback
       secret values in `infra/docker/docker-compose.yml` - `DB_USER`/
@@ -245,41 +270,48 @@ just read in the source.
       (Compose's required-or-fail syntax), so the stack refuses to start
       with unset credentials instead of silently falling back to something
       guessable.
-- [x] ~~**Dependency scanning**~~ — **Fixed the one high-severity, live-
-      relevant finding; reviewed the rest.** `npm audit` (server, prod
-      deps): 6 findings.
-      - **Fixed: `nodemailer` (high) SMTP command/header injection** -
-        directly relevant, since `sendPasswordResetEmail` passes a
-        user-supplied `email` into the `to` field. Bumped `7.0.13` →
-        `^9.0.5` (verified the module still loads and the transport/send
-        API this codebase actually uses is unchanged).
-      - **Reviewed, not fixed: `sanitize-html` (moderate) - doesn't apply
-        to this codebase's usage.** The advisory is a `javascript:` URI
-        bypass through attributes (`action`/`formaction`/`data`/`poster`/
-        `background`) on *allowed* tags. This app calls it with
-        `allowedTags: []`/`allowedAttributes: {}` - every tag is stripped
-        entirely, so there's no surviving tag/attribute for the bypass to
-        target. Deliberately pinned to the exact version `2.17.1` (not a
-        range) for an unrelated reason: its `htmlparser2` dependency is
-        the last CommonJS-compatible one before `htmlparser2` went
-        ESM-only in v10, which breaks every Jest test that imports
-        `server.js`. No version satisfies both "patches this CVE" and
-        "keeps Jest working," so the version choice stands, with this
-        exact reasoning recorded here rather than left implicit.
-      - **Reviewed, not fixed: `sequelize`/`uuid` chain (moderate).** The
-        only available fix path downgrades `sequelize` to `3.x` - not
-        viable, that's the ORM this entire app is built on. Needs a
-        dedicated upgrade path (`sequelize` is currently well past 6.x),
-        not a blind `--force`.
-      - **Reviewed, not fixed: `passport` chain via `passport-oauth`
-        (moderate, session-regeneration on login/logout).** Since this app
-        never uses session-based login (`{ session: false }` everywhere -
-        see §2), the vulnerable code path (session fixation on a
-        session-authenticated login) isn't reachable regardless.
-      Client (`npm audit`, prod deps): 1 remaining finding,
-      `react-router-dom` (moderate, open-redirect bypass) - needs a
-      dedicated v6→v7 migration and regression pass, tracked in
-      `docs/TODO.md`.
+- [x] ~~**Dependency scanning**~~ — **Fixed. `npm audit`: 0 vulnerabilities,
+      both server and client.** Was 6 findings (server) + 1 (client,
+      `react-router-dom`, closed by the v6→v7 migration - see
+      `CHANGELOG.md`).
+      - **`nodemailer` (high) SMTP command/header injection** - directly
+        relevant, since `sendPasswordResetEmail` passes a user-supplied
+        `email` into the `to` field. Bumped `7.0.13` → `^9.0.5`.
+      - **`sanitize-html` (moderate) `javascript:` URI bypass** - bumped
+        `2.17.1` → `^2.17.7`. This app calls it with `allowedTags: []`/
+        `allowedAttributes: {}` (every tag stripped, so the specific
+        bypass - a `javascript:` URI surviving through an *allowed* tag's
+        attribute - was never reachable here), but there was no longer a
+        reason not to take the fix once its side effect was solved (next
+        bullet). Previously pinned to the exact vulnerable version
+        because the patched releases pull in `htmlparser2` v10+, which
+        went ESM-only and broke every Jest test that transitively
+        `require()`s it. Fixed properly instead of left pinned: added
+        `server/__mocks__/sanitize-html.js`, a manual Jest mock (Node
+        itself resolves the real ESM package fine via its native
+        `require(esm)` support - this is purely a Jest module-system
+        limitation) that reproduces the app's actual usage (strip all
+        tags) without needing the real package - or a project-wide
+        Babel/ESM setup - inside Jest.
+      - **`sequelize`/`uuid` chain (moderate)** - `sequelize` itself
+        still depends on the vulnerable `uuid@8.3.2` (confirmed even on
+        its `7.0.0-alpha`/`-next` tags, not just stable `6.x` - there's no
+        real upstream fix yet), and `npm audit`'s suggested "fix"
+        downgrades `sequelize` to `3.x`, which isn't viable. Forced a
+        patched `uuid@^11.1.1` via `package.json`'s `overrides` instead -
+        low-risk since `sequelize` only calls the stable, unchanged
+        `.v1`/`.v4` named exports (`lib/utils.js`), verified by requiring
+        `passport.config.js` (which pulls in the full model/service graph
+        transitively) after the override with no errors.
+      - **`passport` chain via `passport-oauth`** (moderate,
+        session-regeneration on login/logout) - not reachable regardless,
+        since this app never uses session-based login (`{ session: false
+        }` everywhere - see §2), but fixed anyway rather than left as a
+        latent finding: a nested `package.json` override
+        (`"passport-oauth": { "passport": "^0.7.0" }`) dedupes it onto the
+        same patched `passport@0.7.0` already used at the top level -
+        safe because `passport-oauth`'s own code only touches the
+        long-stable `passport.Strategy` base class.
 - [x] ~~**GitHub Actions supply-chain pinning**~~ — **Fixed.** Every
       `uses:` line in both workflows (`ci.yml`, `cd.yml`) used a mutable
       version tag (`@v4`, `@v3`, ...) - a compromised upstream maintainer
@@ -303,8 +335,10 @@ investigate and patch before any public disclosure.
 
 ## What's still open
 
-Tracked with the rest of the roadmap in `docs/TODO.md`:
-structured security-event logging, error tracking, the `react-router-dom`
-v7 and `sequelize`/`uuid` dependency upgrades, reset-token single-use
-tracking, and concurrent-session limits (the latter two are deliberate,
-reviewed tradeoffs, not gaps someone forgot about).
+Tracked with the rest of the roadmap in `docs/TODO.md`: error tracking
+(needs an external account this repo can't provision), database
+at-rest encryption and TLS termination (both depend on a hosting
+decision), and rotating the Guardian/NYT API keys used in this
+environment. Structured security-event logging, reset-token single-use
+tracking, and concurrent-session limits - previously listed here as
+open - are now built; see §2 and §7 above.

@@ -100,6 +100,16 @@ logger.logRequest = async (req, res, responseTime, saveToDb = true) => {
     }
 };
 
+// Structured security-event logging - auth failures, token reuse, etc.
+// File-only by design (see architecture note below): these are for
+// incident investigation, not analytics, so they don't need the ApiLog
+// table's query surface. Always includes which email/IP was targeted,
+// not just the IP, so a real investigation can answer "was this account
+// targeted" without cross-referencing raw HTTP logs.
+logger.logSecurityEvent = (event, meta = {}) => {
+    logger.warn(`Security event: ${event}`, { securityEvent: event, ...meta });
+};
+
 // Enhanced error logging
 logger.logError = (error, req = null) => {
     const errorLog = {
@@ -148,7 +158,8 @@ module.exports = logger;
 │  • Internal API requests → FILE only (optional DB)      │
 │  • Application errors → FILE only                       │
 │  • Debug messages → FILE only                           │
-│  • Security events → FILE only                          │
+│  • Security events → FILE only (logger.logSecurityEvent, │
+│    warn level - failed logins, reset-token reuse, etc.) │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 

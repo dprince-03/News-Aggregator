@@ -79,6 +79,20 @@ CREATE TABLE IF NOT EXISTS refresh_tokens(
     INDEX idx_token_hash (token_hash)
 );
 
+-- Password reset tokens (hashed, single-use) - marks a reset token used on
+-- redemption so a still-JWT-valid token can't be replayed within its 1h window
+CREATE TABLE IF NOT EXISTS password_reset_tokens(
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token_hash VARCHAR(255) UNIQUE NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_token_hash (token_hash)
+);
+
 -- Create a table for API request logs
 CREATE TABLE IF NOT EXISTS api_logs(
     id INT AUTO_INCREMENT PRIMARY KEY,

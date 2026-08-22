@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 #
-# Backs up the newhub MySQL database via `docker exec` + mysqldump, gzips
+# Backs up the newshub MySQL database via `docker exec` + mysqldump, gzips
 # the result, and prunes backups older than $RETENTION_DAYS. No backup
 # mechanism existed anywhere in this project before this script.
 #
 # Usage:
 #   ./backup-db.sh                    # backs up to ./backups
-#   BACKUP_DIR=/var/backups/newhub ./backup-db.sh
+#   BACKUP_DIR=/var/backups/newshub ./backup-db.sh
 #
 # Scheduling (cron, run as the user with docker access):
-#   0 3 * * *  cd /path/to/repo/infra/scripts && ./backup-db.sh >> /var/log/newhub-backup.log 2>&1
+#   0 3 * * *  cd /path/to/repo/infra/scripts && ./backup-db.sh >> /var/log/newshub-backup.log 2>&1
 #
 # Restoring:
-#   gunzip -c backups/newhub-2026-08-17-030000.sql.gz | \
-#     docker exec -i newhub-mysql mysql -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME"
+#   gunzip -c backups/newshub-2026-08-17-030000.sql.gz | \
+#     docker exec -i newshub-mysql mysql -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME"
 #   (rehearse this against a copy of production data at least once - a
 #   backup script that's never been used to restore isn't verified.)
 
@@ -30,11 +30,11 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 DB_NAME="${DB_NAME:-news_aggregator}"
-CONTAINER="${MYSQL_CONTAINER:-newhub-mysql}"
+CONTAINER="${MYSQL_CONTAINER:-newshub-mysql}"
 BACKUP_DIR="${BACKUP_DIR:-$SCRIPT_DIR/../../backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 TIMESTAMP="$(date +%Y-%m-%d-%H%M%S)"
-OUT_FILE="$BACKUP_DIR/newhub-${TIMESTAMP}.sql.gz"
+OUT_FILE="$BACKUP_DIR/newshub-${TIMESTAMP}.sql.gz"
 
 : "${DB_USER:?DB_USER must be set (via infra/docker/.env or the environment)}"
 : "${DB_PASSWORD:?DB_PASSWORD must be set (via infra/docker/.env or the environment)}"
@@ -66,7 +66,7 @@ fi
 echo "Backup complete: $OUT_FILE ($(du -h "$OUT_FILE" | cut -f1))"
 
 if [[ "$RETENTION_DAYS" -gt 0 ]]; then
-  DELETED=$(find "$BACKUP_DIR" -name 'newhub-*.sql.gz' -mtime "+$RETENTION_DAYS" -print -delete | wc -l)
+  DELETED=$(find "$BACKUP_DIR" -name 'newshub-*.sql.gz' -mtime "+$RETENTION_DAYS" -print -delete | wc -l)
   if [[ "$DELETED" -gt 0 ]]; then
     echo "Pruned $DELETED backup(s) older than $RETENTION_DAYS days."
   fi

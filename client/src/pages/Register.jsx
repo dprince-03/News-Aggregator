@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { isValidEmail, isValidPassword } from '../utils/helpers';
 import { btn, input as inputClass, inputError, label as labelClass, fieldError, alert, spinner, card, cx } from '../utils/ui';
 import OAuthButtons from '../components/OAuthButtons';

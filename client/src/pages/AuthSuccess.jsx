@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { spinner, btn } from '../utils/ui';
 
 // Landing page for the OAuth redirect: googleCallback/facebookCallback/
