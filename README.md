@@ -3,7 +3,7 @@
 A full-stack news aggregator application that fetches articles from various sources and provides a modern, responsive web interface for browsing and managing personalized news feeds.
 
 ![License](https://img.shields.io/badge/license-ISC-blue.svg)
-![Node](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)
+![Node](https://img.shields.io/badge/node-%3E%3D22.22-brightgreen.svg)
 ![React](https://img.shields.io/badge/react-18.3.1-blue.svg)
 
 ## Features
@@ -100,7 +100,9 @@ News-Aggregator-API-/
 
 ### Prerequisites
 
-- Node.js 16+ and npm
+- Node.js 22.22+ (the server itself has no strict floor, but the client's
+  `jsdom`/`undici`-based test suite does - see `client/README.md`; CI runs
+  on Node 26)
 - MySQL 8.0+
 - Git
 

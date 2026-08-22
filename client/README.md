@@ -24,7 +24,7 @@ A modern, responsive React frontend for the News Aggregator API.
 
 ### Prerequisites
 
-- Node.js 16+ and npm/yarn
+- Node.js 22.22+ (required by `jsdom`/`undici` for `npm test`; `npm run dev`/`build` alone work on older Node, but CI and the full toolchain assume this)
 - Backend API running on `http://localhost:5080`
 
 ### Installation

@@ -22,6 +22,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `newhub-*` naming (Docker containers/images/volumes/networks,
   `docs/`, CI/CD workflows) was a typo of the project's actual name -
   renamed to `newshub-*` everywhere.
+- **CI's client job failed on every run** (`webidl.util.markAsUncloneable
+  is not a function`, thrown from `undici`/`jsdom` before any test could
+  even execute) - `jsdom@30` (and its `undici` dependency) requires Node
+  `^22.22.2 || ^24.15.0 || >=26.0.0`, but `.github/workflows/ci.yml`
+  pinned every job to Node `20`. Bumped all three jobs to Node `26`
+  (matches the version already used locally) - not caused by anything in
+  this session's other changes, just a latent mismatch that happened to
+  surface now. `README.md`/`client/README.md`/`docs/SETUP.md`'s Node
+  version prerequisites updated to match (the server itself has no strict
+  floor; the client's test tooling does).
 
 ### Security (this pass)
 

@@ -5,7 +5,7 @@ Get your News Aggregator up and running in 5 minutes!
 ## Prerequisites Check
 
 ```bash
-# Check Node.js version (need 16+)
+# Check Node.js version (need 22.22+ - the client's jsdom-based test suite requires it; CI runs Node 26)
 node --version
 
 # Check npm version
