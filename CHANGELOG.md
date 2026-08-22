@@ -22,6 +22,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `newhub-*` naming (Docker containers/images/volumes/networks,
   `docs/`, CI/CD workflows) was a typo of the project's actual name -
   renamed to `newshub-*` everywhere.
+- **The home page's featured/hero article had no Save button at all** -
+  `Home.jsx` renders the first article as a hand-rolled hero card,
+  separate from the regular `ArticleCard` grid, and that hero card never
+  got the save/unsave button `ArticleCard` has. Invisible in normal use
+  (any other visible article still had a working button), but with
+  exactly one article in the DB - as CI's E2E suite has - *every* article
+  was the featured one, so the whole page had zero save buttons and the
+  "save an article" E2E test hung for the full 30s timeout, every run,
+  never fixed because CI's client job (blocking E2E via `needs:`) had been
+  broken by the Node version mismatch above. Added the same save/unsave
+  button to the featured card, reusing `ArticleCard`'s exact styling/aria-
+  label/auth-gating; re-verified live via a from-scratch repro of CI's
+  exact setup (fresh DB, single seeded article, real server + `vite
+  preview` build) - fails without the fix, passes with it.
+- **`scripts/seed-e2e-article.js` never seeded the `Category`/`NewsSource`
+  reference data its own article implied** - it inserts the article
+  directly rather than through `aggregator.service.js`'s normal save
+  pipeline (which is what upserts those rows in production), so a fresh
+  E2E database's Preferences page had nothing to show and no chip to
+  click ("preferences can be updated" E2E test). Also only surfaced now,
+  for the same reason as above. Seed script now also `findOrCreate`s a
+  matching `Category` and `NewsSource` row.
 - **CI's client job failed on every run** (`webidl.util.markAsUncloneable
   is not a function`, thrown from `undici`/`jsdom` before any test could
   even execute) - `jsdom@30` (and its `undici` dependency) requires Node

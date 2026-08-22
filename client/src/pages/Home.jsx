@@ -5,10 +5,12 @@ import preferenceService from '../services/preferenceService';
 import ArticleList from '../components/articles/ArticleList';
 import SearchBar from '../components/SearchBar';
 import { usePaginatedArticles } from '../hooks/useArticles';
+import { useAuth } from '../context/useAuth';
 import { formatDate, isValidImageUrl, getPlaceholderImage } from '../utils/helpers';
 import { btn, kicker, input as inputClass, spinner } from '../utils/ui';
 
 const Home = () => {
+  const { isAuthenticated } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     source: '',
@@ -17,6 +19,7 @@ const Home = () => {
   const [sources, setSources] = useState([]);
   const [categories, setCategories] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [featuredSaving, setFeaturedSaving] = useState(false);
 
   // Fetch sources and categories
   useEffect(() => {
@@ -60,6 +63,29 @@ const Home = () => {
 
   const handleSaveToggle = (articleId, isSaved) => {
     updateArticle(articleId, { is_saved: isSaved });
+  };
+
+  const handleFeaturedSaveToggle = async (e, featuredArticle) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      return;
+    }
+
+    setFeaturedSaving(true);
+    try {
+      if (featuredArticle.is_saved) {
+        await articleService.unsaveArticle(featuredArticle.id);
+      } else {
+        await articleService.saveArticle(featuredArticle.id);
+      }
+      handleSaveToggle(featuredArticle.id, !featuredArticle.is_saved);
+    } catch (error) {
+      console.error('Error toggling save:', error);
+    } finally {
+      setFeaturedSaving(false);
+    }
   };
 
   const hasActiveFilters = filters.source || filters.category || searchTerm;
@@ -142,37 +168,55 @@ const Home = () => {
         ) : (
           <>
             {featured && (
-              <Link
-                to={`/article/${featured.id}`}
-                className="group mb-10 grid grid-cols-1 gap-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-shadow hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 md:grid-cols-2"
-              >
-                <div className="aspect-[16/10] overflow-hidden bg-zinc-100 dark:bg-zinc-800 md:aspect-auto">
-                  <img
-                    src={isValidImageUrl(featured.url_to_image) ? featured.url_to_image : getPlaceholderImage()}
-                    alt={featured.title}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    onError={(e) => {
-                      e.target.src = getPlaceholderImage();
-                    }}
-                  />
-                </div>
-                <div className="flex flex-col justify-center gap-3 p-6 md:p-8">
-                  {featured.category && <span className={kicker}>{featured.category}</span>}
-                  <h2 className="font-display text-2xl font-bold leading-tight group-hover:underline sm:text-3xl">
-                    {featured.title}
-                  </h2>
-                  {featured.description && (
-                    <p className="line-clamp-3 text-zinc-500 dark:text-zinc-400">{featured.description}</p>
-                  )}
-                  <div className="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
-                    {featured.source_name && (
-                      <span className="font-medium text-zinc-600 dark:text-zinc-300">{featured.source_name}</span>
-                    )}
-                    <span>&middot;</span>
-                    <span>{formatDate(featured.published_at)}</span>
+              <div className="group relative mb-10 grid grid-cols-1 gap-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-shadow hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 md:grid-cols-2">
+                <Link to={`/article/${featured.id}`} className="contents">
+                  <div className="aspect-[16/10] overflow-hidden bg-zinc-100 dark:bg-zinc-800 md:aspect-auto">
+                    <img
+                      src={isValidImageUrl(featured.url_to_image) ? featured.url_to_image : getPlaceholderImage()}
+                      alt={featured.title}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        e.target.src = getPlaceholderImage();
+                      }}
+                    />
                   </div>
-                </div>
-              </Link>
+                  <div className="flex flex-col justify-center gap-3 p-6 md:p-8">
+                    {featured.category && <span className={kicker}>{featured.category}</span>}
+                    <h2 className="font-display text-2xl font-bold leading-tight group-hover:underline sm:text-3xl">
+                      {featured.title}
+                    </h2>
+                    {featured.description && (
+                      <p className="line-clamp-3 text-zinc-500 dark:text-zinc-400">{featured.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
+                      {featured.source_name && (
+                        <span className="font-medium text-zinc-600 dark:text-zinc-300">{featured.source_name}</span>
+                      )}
+                      <span>&middot;</span>
+                      <span>{formatDate(featured.published_at)}</span>
+                    </div>
+                  </div>
+                </Link>
+
+                {isAuthenticated && (
+                  <button
+                    type="button"
+                    className={`absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md transition-colors ${
+                      featured.is_saved
+                        ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                        : 'bg-black/40 text-white hover:bg-black/60'
+                    }`}
+                    onClick={(e) => handleFeaturedSaveToggle(e, featured)}
+                    disabled={featuredSaving}
+                    aria-label={featured.is_saved ? 'Unsave article' : 'Save article'}
+                    title={featured.is_saved ? 'Remove from saved' : 'Save for later'}
+                  >
+                    <svg width="16" height="16" fill={featured.is_saved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             )}
 
             <ArticleList articles={rest} loading={false} error={error} onSaveToggle={handleSaveToggle} />
